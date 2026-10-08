@@ -189,7 +189,7 @@ The **mode** is the user's choice (Windows or WSL2), persisted in settings.
 
 - Left: gear icon button (accessible name "Settings") → Settings window.
 - Center: `© 2026 Minh Viet`.
-- Right: "Help" → Help window: frequently asked questions (`HelpViewModel.Questions`, first one: adb "no permissions" in WSL), then "Send issues to email vietdau33@gmail.com".
+- Right: "Help" → Help window: a filter box (matches every word against the question text) and an accordion of questions (`HelpViewModel.Questions`; click a question to open its answer, the open one closes; chevron down/up), then "Send issues to email vietdau33@gmail.com". First question: adb "no permissions" in WSL.
 
 ## 7. Settings
 
@@ -286,4 +286,4 @@ All rewritten in English for this project (the copied files belong to another pr
 | Q15 | Toolchain | Installed by the maintainer. |
 | Q16 | Code signing (2026-10-08) | Personal use; Smart App Control turned off by the maintainer. Self-signed certificate, trusted via LocalMachine\Root (`dist/certificate/` for other machines). `build.ps1` signs by default and checks the signing prerequisites before building; `--no-sign` opts out. |
 | Q17 | License (2026-10-08) | PolyForm Noncommercial 1.0.0 (`LICENSE`): personal/noncommercial use allowed, commercial use not. |
-| Q18 | UI polish (2026-10-08) | Focus ring only after keyboard navigation (no ring after a click). Current mode button disabled. Console capped at 1000 lines. Help = FAQ + issue email. Init button labelled "Refresh" once the app is ready. |
+| Q18 | UI polish (2026-10-08) | Focus ring only after keyboard navigation (no ring after a click). Current mode button disabled. Console capped at 1000 lines. Help = filterable FAQ accordion (one answer open at a time) + issue email. Init button labelled "Refresh" once the app is ready. |

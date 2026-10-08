@@ -44,7 +44,7 @@ usbipd-win-manager/
 │       ├── app.manifest            # requireAdministrator, PerMonitorV2
 │       ├── App.xaml(.cs)           # Composition root, CLI handling, lifetime
 │       ├── Startup/                # CommandLineOptions
-│       ├── Views/                  # MainWindow, SettingsWindow, AboutWindow, HelpWindow (FAQ), MessageDialog
+│       ├── Views/                  # MainWindow, SettingsWindow, AboutWindow, HelpWindow (filterable FAQ accordion), MessageDialog
 │       ├── ViewModels/             # Main, Console (1000-line cap), DeviceItem, Settings, About, Help (FAQ list)
 │       ├── Tray/                   # TrayIconService (NotifyIcon + menu), TrayMenuRenderer (themed menu)
 │       ├── Theme/                  # Colors.Light/Dark, Typography, Icons, Controls, ThemeManager, DESIGN.md

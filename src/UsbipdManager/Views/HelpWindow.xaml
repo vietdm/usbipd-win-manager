@@ -9,60 +9,81 @@
         d:DataContext="{d:DesignInstance Type=vm:HelpViewModel}"
         Title="Help"
         Icon="pack://application:,,,/UsbipdManager;component/Assets/app.ico"
-        Width="500"
-        MaxHeight="640"
-        SizeToContent="Height"
+        Width="520"
+        Height="580"
         WindowStartupLocation="CenterOwner"
         Style="{DynamicResource Window.Chrome}">
+    <!-- Fixed height: opening an answer scrolls the list instead of resizing the window. -->
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-            <StackPanel Margin="24,20,24,20">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
-                    <ui:IconView Geometry="{DynamicResource Icon.Help}" Width="22" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
-                                 Foreground="{DynamicResource Brush.Log.Command}" />
-                    <TextBlock Style="{DynamicResource Text.Subtitle}" Text="Frequently asked questions" VerticalAlignment="Center" />
-                </StackPanel>
+        <StackPanel Margin="24,20,24,12">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                <ui:IconView Geometry="{DynamicResource Icon.Help}" Width="22" Height="22" Margin="0,0,10,0" VerticalAlignment="Center"
+                             Foreground="{DynamicResource Brush.Log.Command}" />
+                <TextBlock Style="{DynamicResource Text.Subtitle}" Text="Frequently asked questions" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBox x:Name="FilterBox" Style="{DynamicResource TextBox.Search}" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}"
+                     ui:UiProps.Placeholder="Filter questions..." AutomationProperties.Name="Filter questions" />
+        </StackPanel>
 
+        <ScrollViewer Grid.Row="1" Margin="24,0,8,0" Padding="0,0,16,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      Focusable="False">
+            <Grid>
                 <ItemsControl ItemsSource="{Binding Questions}" Focusable="False" AutomationProperties.Name="Frequently asked questions">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:FaqItem}">
-                            <Border Style="{DynamicResource Card}" Padding="16,12" Margin="0,0,0,10">
+                            <Border Style="{DynamicResource Card}" Margin="0,0,0,8"
+                                    Visibility="{Binding IsVisible, Converter={StaticResource Conv.BoolToVisibility}}">
                                 <StackPanel>
-                                    <TextBlock Style="{DynamicResource Text.Section}" Text="{Binding Question}" />
-                                    <TextBlock Style="{DynamicResource Text.Body}" Margin="0,4,0,0" Text="{Binding Answer}" />
-                                    <Border Margin="0,8,0,0" Padding="10,4,4,4" CornerRadius="{DynamicResource Radius.Medium}" BorderThickness="1"
-                                            Background="{DynamicResource Brush.Console}" BorderBrush="{DynamicResource Brush.Border}"
-                                            Visibility="{Binding HasCommand, Converter={StaticResource Conv.BoolToVisibility}}">
-                                        <DockPanel>
-                                            <Button DockPanel.Dock="Right" Style="{DynamicResource Button.Icon}" Command="{Binding CopyCommand}"
-                                                    AutomationProperties.Name="Copy command" ToolTip="Copy command">
-                                                <ui:IconView Geometry="{DynamicResource Icon.Copy}" />
-                                            </Button>
-                                            <TextBlock Style="{DynamicResource Text.Mono}" Text="{Binding Command}" VerticalAlignment="Center"
-                                                       Foreground="{DynamicResource Brush.Log.Command}" />
-                                        </DockPanel>
+                                    <Button Style="{DynamicResource Button.Disclosure}" ui:UiProps.IsActive="{Binding IsExpanded}"
+                                            Command="{Binding DataContext.ToggleCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Question}">
+                                        <TextBlock Style="{DynamicResource Text.Section}" Text="{Binding Question}" />
+                                    </Button>
+                                    <Border Padding="16,10,16,14" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+                                            Visibility="{Binding IsExpanded, Converter={StaticResource Conv.BoolToVisibility}}">
+                                        <StackPanel>
+                                            <TextBlock Style="{DynamicResource Text.Body}" Text="{Binding Answer}" />
+                                            <Border Margin="0,8,0,0" Padding="10,4,4,4" CornerRadius="{DynamicResource Radius.Medium}" BorderThickness="1"
+                                                    Background="{DynamicResource Brush.Console}" BorderBrush="{DynamicResource Brush.Border}"
+                                                    Visibility="{Binding HasCommand, Converter={StaticResource Conv.BoolToVisibility}}">
+                                                <DockPanel>
+                                                    <Button DockPanel.Dock="Right" Style="{DynamicResource Button.Icon}" Command="{Binding CopyCommand}"
+                                                            AutomationProperties.Name="Copy command" ToolTip="Copy command">
+                                                        <ui:IconView Geometry="{DynamicResource Icon.Copy}" />
+                                                    </Button>
+                                                    <TextBlock Style="{DynamicResource Text.Mono}" Text="{Binding Command}" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource Brush.Log.Command}" />
+                                                </DockPanel>
+                                            </Border>
+                                            <TextBlock Style="{DynamicResource Text.Body}" Margin="0,8,0,0" Text="{Binding FollowUp}"
+                                                       Visibility="{Binding HasFollowUp, Converter={StaticResource Conv.BoolToVisibility}}" />
+                                        </StackPanel>
                                     </Border>
-                                    <TextBlock Style="{DynamicResource Text.Body}" Margin="0,8,0,0" Text="{Binding FollowUp}"
-                                               Visibility="{Binding HasFollowUp, Converter={StaticResource Conv.BoolToVisibility}}" />
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-
-                <TextBlock Style="{DynamicResource Text.Section}" Margin="0,8,0,2" Text="Still stuck?" />
-                <TextBlock Style="{DynamicResource Text.Muted}" Text="{Binding IssueText}" />
-            </StackPanel>
+                <TextBlock Style="{DynamicResource Text.Muted}" Margin="0,8,0,0" HorizontalAlignment="Center" Text="{Binding NoResultsText}"
+                           Visibility="{Binding HasResults, Converter={StaticResource Conv.InverseBoolToVisibility}}" />
+            </Grid>
         </ScrollViewer>
 
-        <Border Grid.Row="1" Background="{DynamicResource Brush.TitleBar}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+        <StackPanel Grid.Row="2" Margin="24,12,24,16">
+            <TextBlock Style="{DynamicResource Text.Section}" Margin="0,0,0,2" Text="Still stuck?" />
+            <TextBlock Style="{DynamicResource Text.Muted}" Text="{Binding IssueText}" />
+        </StackPanel>
+
+        <Border Grid.Row="3" Background="{DynamicResource Brush.TitleBar}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
                 Padding="20,12">
-            <Button x:Name="CloseButton" HorizontalAlignment="Right" MinWidth="88" Content="Close" IsCancel="True" IsDefault="True" Click="OnClose" />
+            <Button x:Name="CloseButton" HorizontalAlignment="Right" MinWidth="88" Content="Close" IsCancel="True" Click="OnClose" />
         </Border>
     </Grid>
 </Window>

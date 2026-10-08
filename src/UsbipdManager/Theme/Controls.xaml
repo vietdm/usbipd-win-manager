@@ -240,6 +240,93 @@
         </Setter>
     </Style>
 
+    <!-- Accordion header: content on the left, chevron on the right. ui:UiProps.IsActive = expanded (chevron points up). -->
+    <Style x:Key="Button.Disclosure" TargetType="Button" BasedOn="{StaticResource Button.Base}">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="16,12,12,12" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="{DynamicResource Radius.Large}" SnapsToDevicePixels="True">
+                        <DockPanel Margin="{TemplateBinding Padding}">
+                            <ui:IconView x:Name="Chevron" DockPanel.Dock="Right" Width="18" Height="18" Margin="12,0,0,0" VerticalAlignment="Center"
+                                         Geometry="{DynamicResource Icon.ChevronDown}" Foreground="{DynamicResource Brush.TextMuted}" />
+                            <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="False" Focusable="False" />
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="ui:UiProps.IsActive" Value="True">
+                            <Setter TargetName="Chevron" Property="Geometry" Value="{DynamicResource Icon.ChevronUp}" />
+                            <Setter TargetName="Bd" Property="CornerRadius" Value="8,8,0,0" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.SurfaceHover}" />
+                            <Setter TargetName="Chevron" Property="Foreground" Value="{DynamicResource Brush.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.SurfacePressed}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===== Search box (TextBox): search icon, ui:UiProps.Placeholder while empty ===== -->
+    <Style x:Key="TextBox.Search" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{DynamicResource Font.UI}" />
+        <Setter Property="FontSize" Value="{DynamicResource FontSize.Body}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text}" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Surface}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource Brush.BorderStrong}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Brush.Text}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Brush.Selection}" />
+        <Setter Property="MinHeight" Value="{DynamicResource Size.Control}" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Grid>
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{DynamicResource Radius.Medium}" SnapsToDevicePixels="True">
+                            <Grid Margin="10,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <ui:IconView Geometry="{DynamicResource Icon.Search}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"
+                                             Foreground="{DynamicResource Brush.TextMuted}" />
+                                <TextBlock x:Name="Placeholder" Grid.Column="1" Margin="2,0,0,0" VerticalAlignment="Center" Visibility="Collapsed"
+                                           Text="{TemplateBinding ui:UiProps.Placeholder}" Foreground="{DynamicResource Brush.TextMuted}" IsHitTestVisible="False" />
+                                <ScrollViewer x:Name="PART_ContentHost" Grid.Column="1" VerticalAlignment="Center" Focusable="False"
+                                              HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                            </Grid>
+                        </Border>
+                        <!-- Separate 2 px ring so the text does not shift when focus arrives. -->
+                        <Border x:Name="FocusBd" BorderThickness="2" CornerRadius="{DynamicResource Radius.Medium}" SnapsToDevicePixels="True"
+                                BorderBrush="{DynamicResource Brush.FocusRing}" Visibility="Collapsed" IsHitTestVisible="False" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="Placeholder" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource Brush.Text}" />
+                        </Trigger>
+                        <!-- A text field always shows where typing goes, so its focus border is not keyboard-only. -->
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="FocusBd" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Title bar buttons (not focusable, like the system caption buttons). -->
     <Style x:Key="Button.Caption" TargetType="Button">
         <Setter Property="Width" Value="46" />

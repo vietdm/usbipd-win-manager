@@ -10,6 +10,8 @@
     <Geometry x:Key="Icon.Maximize">M5.5,5.5 L18.5,5.5 L18.5,18.5 L5.5,18.5 Z</Geometry>
     <Geometry x:Key="Icon.Check">M5,12.5 L10,17.5 L19,7</Geometry>
     <Geometry x:Key="Icon.ChevronDown">M6,9 L12,15 L18,9</Geometry>
+    <Geometry x:Key="Icon.ChevronUp">M6,15 L12,9 L18,15</Geometry>
+    <Geometry x:Key="Icon.Search">M17.5,10.5 A7,7 0 1 1 3.5,10.5 A7,7 0 1 1 17.5,10.5 Z M15.5,15.5 L20.5,20.5</Geometry>
     <Geometry x:Key="Icon.ArrowDown">M12,5 L12,19 M6,13 L12,19 L18,13</Geometry>
 
     <Geometry x:Key="Icon.Copy">M10,8 L19,8 A2,2 0 0 1 21,10 L21,19 A2,2 0 0 1 19,21 L10,21 A2,2 0 0 1 8,19 L8,10 A2,2 0 0 1 10,8 Z M5,16 L4.5,16 A1.5,1.5 0 0 1 3,14.5 L3,4.5 A1.5,1.5 0 0 1 4.5,3 L14.5,3 A1.5,1.5 0 0 1 16,4.5 L16,5</Geometry>

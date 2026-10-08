@@ -9,7 +9,7 @@ public partial class HelpWindow : Window
     {
         InitializeComponent();
         DataContext = viewModel;
-        Loaded += (_, _) => CloseButton.Focus();
+        Loaded += (_, _) => FilterBox.Focus();
     }
 
     private void OnClose(object sender, RoutedEventArgs e) => Close();
