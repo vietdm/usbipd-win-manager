@@ -83,6 +83,7 @@ NuGet packages: `System.Management` 10.0.0, `System.ServiceProcess.ServiceContro
 - `bind` is persisted by usbipd per device instance; a bound device stays "Shared" on any port.
 - Install: `winget install --id dorssel.usbipd-win -e --silent ...`; exit codes 0, `0x8A15002B` (already installed) and `0x8A150109` (reboot required) count as success.
 - Service name `usbipd`. Starting a Disabled service fails, so Init sets it to Automatic first.
+- Observed 2026-10-08 (usbipd 5.3.0): `usbipd detach` makes the device re-enumerate on Windows, so its busid is missing from `usbipd state` for ~1-3 s (an immediate `unbind --busid` fails with "There is no device with busid"). An `attach` started during that window hung until the 60 s timeout once (phone, 2-11).
 - Only read-only commands (`state`, `--version`) are not echoed to the console; every state-changing command is logged as `$ ...`.
 
 ## 7. WSL facts used by the code
