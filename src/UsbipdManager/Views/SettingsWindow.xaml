@@ -1,0 +1,178 @@
+<Window x:Class="UsbipdManager.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="clr-namespace:UsbipdManager.Controls"
+        xmlns:vm="clr-namespace:UsbipdManager.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+        Title="Settings"
+        Icon="pack://application:,,,/UsbipdManager;component/Assets/app.ico"
+        Width="520" Height="700"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        Style="{DynamicResource Window.Chrome}">
+
+    <Window.Resources>
+        <!-- One settings row: title + description on the left, control on the right. -->
+        <Style x:Key="SettingRow" TargetType="Grid">
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+        <Style x:Key="GroupHeader" TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="4,0,0,8" />
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <StackPanel Margin="20,14,20,4">
+
+                <!-- General -->
+                <TextBlock Style="{DynamicResource GroupHeader}" Text="General" />
+                <Border Style="{DynamicResource Card}" Padding="16,12,16,2" Margin="{DynamicResource Space.Stack}">
+                    <StackPanel>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="StartWithWindowsLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Start with Windows" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="{Binding AutoStartStatus}" />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{DynamicResource ToggleSwitch}"
+                                      IsChecked="{Binding StartWithWindows, Mode=OneWay}" Command="{Binding ToggleAutoStartCommand}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=StartWithWindowsLabel}" />
+                        </Grid>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="140" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="ThemeLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Theme" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="System follows the Windows app mode." />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding ThemeOptions}" DisplayMemberPath="Label"
+                                      SelectedItem="{Binding SelectedTheme}" AutomationProperties.LabeledBy="{Binding ElementName=ThemeLabel}" />
+                        </Grid>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="DesktopShortcutLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Desktop shortcut" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="Shortcut to this app on the desktop." />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{DynamicResource ToggleSwitch}"
+                                      IsChecked="{Binding DesktopShortcut, Mode=OneWay}" Command="{Binding ToggleDesktopShortcutCommand}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=DesktopShortcutLabel}" />
+                        </Grid>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="StartMenuShortcutLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Start Menu shortcut" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="Shortcut to this app in the Start Menu." />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{DynamicResource ToggleSwitch}"
+                                      IsChecked="{Binding StartMenuShortcut, Mode=OneWay}" Command="{Binding ToggleStartMenuShortcutCommand}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=StartMenuShortcutLabel}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Behavior -->
+                <TextBlock Style="{DynamicResource GroupHeader}" Text="Behavior" />
+                <Border Style="{DynamicResource Card}" Padding="16,12,16,2" Margin="{DynamicResource Space.Stack}">
+                    <StackPanel>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="RestoreLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Restore last mode on startup" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="If the last mode was WSL2, attach the managed devices again at launch." />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding RestoreLastMode}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=RestoreLabel}" />
+                        </Grid>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="ReattachLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Auto re-attach in WSL2 mode" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="A re-plugged managed device is attached to WSL2 again." />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding AutoReattach}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=ReattachLabel}" />
+                        </Grid>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="180" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="DistroLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="WSL distribution" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="Kept running while in WSL2 mode." />
+                            </StackPanel>
+                            <ComboBox Grid.Column="1" VerticalAlignment="Center" ItemsSource="{Binding DistroOptions}" DisplayMemberPath="Label"
+                                      SelectedItem="{Binding SelectedDistro}" AutomationProperties.LabeledBy="{Binding ElementName=DistroLabel}" />
+                        </Grid>
+                        <Grid Style="{DynamicResource SettingRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Margin="0,0,16,0">
+                                <TextBlock x:Name="NotificationsLabel" Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Tray notifications" />
+                                <TextBlock Style="{DynamicResource Text.Caption}" Text="Show a notification on mode switches and errors." />
+                            </StackPanel>
+                            <CheckBox Grid.Column="1" Style="{DynamicResource ToggleSwitch}" IsChecked="{Binding TrayNotifications}"
+                                      AutomationProperties.LabeledBy="{Binding ElementName=NotificationsLabel}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Maintenance -->
+                <TextBlock Style="{DynamicResource GroupHeader}" Text="Maintenance" />
+                <Border Style="{DynamicResource Card}" Padding="16,12,16,2" Margin="{DynamicResource Space.Stack}">
+                    <Grid Style="{DynamicResource SettingRow}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Margin="0,0,16,0">
+                            <TextBlock Style="{DynamicResource Text.Body}" FontWeight="SemiBold" Text="Logs" />
+                            <TextBlock Style="{DynamicResource Text.Caption}" Text="Daily log files, kept for 14 days." />
+                        </StackPanel>
+                        <Button Grid.Column="1" Command="{Binding OpenLogFolderCommand}" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:IconView Geometry="{DynamicResource Icon.Folder}" Margin="0,0,8,0" />
+                                <TextBlock Text="Open log folder" />
+                            </StackPanel>
+                        </Button>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="1" Background="{DynamicResource Brush.TitleBar}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <Button HorizontalAlignment="Right" MinWidth="88" Content="Close" IsCancel="True" IsDefault="True" Click="OnClose" />
+        </Border>
+    </Grid>
+</Window>

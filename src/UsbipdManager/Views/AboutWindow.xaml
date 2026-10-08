@@ -1,0 +1,53 @@
+<Window x:Class="UsbipdManager.Views.AboutWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:UsbipdManager.ViewModels"
+        xmlns:ui="clr-namespace:UsbipdManager.Controls"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:AboutViewModel}"
+        Title="About"
+        Icon="pack://application:,,,/UsbipdManager;component/Assets/app.ico"
+        Width="400"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Style="{DynamicResource Window.Chrome}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Margin="24,24,24,20">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                <Border Width="48" Height="48" Margin="0,0,16,0" CornerRadius="{DynamicResource Radius.Large}"
+                        Background="{DynamicResource Brush.Accent}">
+                    <ui:IconView Geometry="{DynamicResource Icon.Usb}" Width="30" Height="30" StrokeThickness="2"
+                                 Foreground="{DynamicResource Brush.OnAccent}" />
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Style="{DynamicResource Text.Title}" Text="{Binding ProductName}" />
+                    <TextBlock Style="{DynamicResource Text.Muted}" Text="{Binding VersionText}" />
+                </StackPanel>
+            </StackPanel>
+
+            <Border Style="{DynamicResource Card}" Padding="16,12">
+                <StackPanel>
+                    <TextBlock Style="{DynamicResource Text.Body}" Text="{Binding AuthorText}" Margin="0,0,0,4" />
+                    <TextBlock Style="{DynamicResource Text.Body}" Text="{Binding CreatedText}" Margin="0,0,0,4" />
+                    <TextBlock Style="{DynamicResource Text.Body}" Text="{Binding UpdatedText}" Margin="0,0,0,4"
+                               Visibility="{Binding HasUpdated, Converter={StaticResource Conv.BoolToVisibility}}" />
+                    <TextBlock Style="{DynamicResource Text.Muted}" Text="{Binding Copyright}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Style="{DynamicResource Text.Muted}" Margin="0,14,0,0" Text="{Binding IssueText}" />
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="{DynamicResource Brush.TitleBar}" BorderBrush="{DynamicResource Brush.Border}" BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <Button x:Name="CloseButton" HorizontalAlignment="Right" MinWidth="88" Content="Close" IsCancel="True" IsDefault="True" Click="OnClose" />
+        </Border>
+    </Grid>
+</Window>
