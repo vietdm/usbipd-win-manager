@@ -1,0 +1,25 @@
+<Project>
+  <!-- version.json is the single source of truth; build.ps1 overrides these with /p: values. -->
+  <PropertyGroup>
+    <_VersionJson>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)version.json'))</_VersionJson>
+    <Version Condition="'$(Version)' == ''">$([System.Text.RegularExpressions.Regex]::Match($(_VersionJson), '(?&lt;="version"\s*:\s*")[^"]+'))</Version>
+    <AppCreatedDate Condition="'$(AppCreatedDate)' == ''">$([System.Text.RegularExpressions.Regex]::Match($(_VersionJson), '(?&lt;="createdDate"\s*:\s*")[^"]+'))</AppCreatedDate>
+    <AppUpdatedDate Condition="'$(AppUpdatedDate)' == ''">$([System.Text.RegularExpressions.Regex]::Match($(_VersionJson), '(?&lt;="updatedDate"\s*:\s*")[^"]+'))</AppUpdatedDate>
+
+    <Product>USBIPD Manager</Product>
+    <Authors>Minh Viet</Authors>
+    <Company>Minh Viet</Company>
+    <Copyright>© 2026 Minh Viet</Copyright>
+
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="CreatedDate" Value="$(AppCreatedDate)" />
+    <AssemblyMetadata Include="UpdatedDate" Value="$(AppUpdatedDate)" />
+  </ItemGroup>
+</Project>

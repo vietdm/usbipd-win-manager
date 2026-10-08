@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/UsbipdManager.Core/UsbipdManager.Core.csproj" />
+    <Project Path="src/UsbipdManager/UsbipdManager.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/UsbipdManager.Tests/UsbipdManager.Tests.csproj" />
+  </Folder>
+</Solution>

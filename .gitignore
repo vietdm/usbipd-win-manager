@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+.artifacts/
+dist/
+publish/
+*.binlog
+
+# IDE / OS
+.vs/
+.vscode/
+*.user
+*.suo
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test results
+TestResults/
+*.trx
+coverage*/

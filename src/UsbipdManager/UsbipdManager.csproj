@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>UsbipdManager</AssemblyName>
+    <RootNamespace>UsbipdManager</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon Condition="Exists('Assets\app.ico')">Assets\app.ico</ApplicationIcon>
+    <!-- DPI awareness is declared in app.manifest for WPF; the WinForms analyzer's advice does not apply. -->
+    <NoWarn>$(NoWarn);WFO0003</NoWarn>
+  </PropertyGroup>
+
+  <!-- WinForms is only used for NotifyIcon; keep its namespaces out of implicit usings to avoid WPF type clashes. -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\UsbipdManager.Core\UsbipdManager.Core.csproj" />
+  </ItemGroup>
+
+</Project>
