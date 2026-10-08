@@ -12,6 +12,18 @@ public sealed class DeviceManager : IDeviceManager
 {
     internal static readonly TimeSpan RetryBackoff = TimeSpan.FromSeconds(30);
 
+    // A device that just appeared or changed state is often still re-enumerating (usbipd detach and resets do that);
+    // an attach started in that window hung for 60 s once. Automatic bind/attach waits until it has been stable this long.
+    internal static readonly TimeSpan SettleTime = TimeSpan.FromSeconds(3);
+
+    // After usbipd detach the bus ID disappears for ~1-3 s while Windows re-enumerates the device; unbind fails meanwhile.
+    internal static readonly TimeSpan ReenumerationPoll = TimeSpan.FromMilliseconds(500);
+    internal static readonly TimeSpan ReenumerationTimeout = TimeSpan.FromSeconds(10);
+
+    internal static readonly TimeSpan DefaultAutoAttachTimeout = TimeSpan.FromSeconds(20);
+
+    private const int MaxSettleWaits = 3;
+
     private readonly IUsbipdClient _usbipd;
     private readonly IWslClient _wsl;
     private readonly ISettingsStore _settings;
@@ -22,6 +34,10 @@ public sealed class DeviceManager : IDeviceManager
 
     // Last failed automatic bind/attach per device, so repeated device events do not retry (and log) every time.
     private readonly Dictionary<string, DateTimeOffset> _failures = new(StringComparer.OrdinalIgnoreCase);
+
+    // When each connected device last appeared or changed state (see SettleTime).
+    private readonly Dictionary<string, (UsbDeviceState State, DateTimeOffset Since)> _lastChange = new(StringComparer.OrdinalIgnoreCase);
+    private bool _baselineTaken;
 
     private IReadOnlyList<DeviceEntry> _entries = [];
     private IReadOnlyList<UsbDevice> _devices = [];
@@ -49,6 +65,12 @@ public sealed class DeviceManager : IDeviceManager
 
     public event EventHandler? EntriesChanged;
 
+    /// <summary>Tests replace it to advance a fake clock instead of waiting.</summary>
+    internal Func<TimeSpan, CancellationToken, Task> Delay { get; set; } = Task.Delay;
+
+    /// <summary>Automatic attaches give up sooner than user-started ones, so a hanging attach does not hold the gate for long.</summary>
+    internal TimeSpan AutoAttachTimeout { get; set; } = DefaultAutoAttachTimeout;
+
     public IReadOnlyList<DeviceEntry> Entries
     {
         get
@@ -63,10 +85,22 @@ public sealed class DeviceManager : IDeviceManager
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {
         var devices = await ReadDevicesAsync(cancellationToken).ConfigureAwait(false);
-        ClearFailuresOfUnpluggedDevices(devices);
-
-        if (await ApplyRulesAsync(devices, _settings.Current, cancellationToken).ConfigureAwait(false))
+        for (var waits = 0; ; waits++)
         {
+            ClearFailuresOfUnpluggedDevices(devices);
+            var (changed, settleWait) = await ApplyRulesAsync(devices, _settings.Current, cancellationToken).ConfigureAwait(false);
+            if (changed)
+            {
+                devices = await ReadDevicesAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+            if (settleWait <= TimeSpan.Zero || waits >= MaxSettleWaits)
+            {
+                break;
+            }
+
+            Publish(devices);
+            await Delay(settleWait, cancellationToken).ConfigureAwait(false);
             devices = await ReadDevicesAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -292,6 +326,7 @@ public sealed class DeviceManager : IDeviceManager
         var device = FindConnected(devices, entry);
         if (device is not null)
         {
+            var detached = false;
             if (device.State == UsbDeviceState.Attached)
             {
                 var detach = await _usbipd.DetachAsync(entry.BusId, cancellationToken).ConfigureAwait(false);
@@ -301,11 +336,25 @@ public sealed class DeviceManager : IDeviceManager
                     Publish(devices);
                     return OperationResult.Fail(DeviceText.Reason(detach));
                 }
+
+                detached = true;
             }
 
             if (device.State != UsbDeviceState.NotShared)
             {
-                var unbind = await _usbipd.UnbindAsync(entry.BusId, cancellationToken).ConfigureAwait(false);
+                var unbind = detached
+                    ? await UnbindAfterReenumerationAsync(entry, cancellationToken).ConfigureAwait(false)
+                    : await _usbipd.UnbindAsync(entry.BusId, cancellationToken).ConfigureAwait(false);
+                if (!unbind.Success && detached)
+                {
+                    // Already back in Windows: keep it OFF anyway, otherwise auto-attach would move it to WSL2 again.
+                    RemoveManaged(entry.BusId, entry.DeviceKey);
+                    ClearFailure(entry.BusId, entry.DeviceKey);
+                    _log.Warning($"{name} is OFF and back in Windows, but it is still shared: {DeviceText.Reason(unbind)}");
+                    await RefreshAsync(cancellationToken).ConfigureAwait(false);
+                    return OperationResult.Ok;
+                }
+
                 if (!unbind.Success)
                 {
                     _log.Error($"Could not stop sharing {name}: {DeviceText.Reason(unbind)}");
@@ -322,10 +371,44 @@ public sealed class DeviceManager : IDeviceManager
         return OperationResult.Ok;
     }
 
-    /// <summary>Returns true when something was changed and the state must be re-read.</summary>
-    private async Task<bool> ApplyRulesAsync(IReadOnlyList<UsbDevice> devices, AppSettings settings, CancellationToken cancellationToken)
+    // Polls until the device is listed again after a detach, then unbinds it.
+    private async Task<OperationResult> UnbindAfterReenumerationAsync(DeviceEntry entry, CancellationToken cancellationToken)
+    {
+        var deadline = _clock() + ReenumerationTimeout;
+        var last = OperationResult.Fail($"The device did not come back within {ReenumerationTimeout.TotalSeconds:0} seconds after the detach.");
+        while (true)
+        {
+            await Delay(ReenumerationPoll, cancellationToken).ConfigureAwait(false);
+            var device = FindConnected(await ReadDevicesAsync(cancellationToken).ConfigureAwait(false), entry);
+            if (device is not null)
+            {
+                if (device.State == UsbDeviceState.NotShared)
+                {
+                    return OperationResult.Ok;
+                }
+
+                last = await _usbipd.UnbindAsync(entry.BusId!, cancellationToken).ConfigureAwait(false);
+                if (last.Success)
+                {
+                    return last;
+                }
+            }
+
+            if (_clock() >= deadline)
+            {
+                return last;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Changed: something was done and the state must be re-read. SettleWait: a managed device that needs a bind or
+    /// attach is still settling (see SettleTime); the caller waits this long and applies the rules again.
+    /// </summary>
+    private async Task<(bool Changed, TimeSpan SettleWait)> ApplyRulesAsync(IReadOnlyList<UsbDevice> devices, AppSettings settings, CancellationToken cancellationToken)
     {
         var changed = false;
+        var settleWait = TimeSpan.Zero;
         var autoAttach = settings.Mode == UsbMode.Wsl && settings.AutoReattach;
         bool? wslReady = null;
 
@@ -333,6 +416,14 @@ public sealed class DeviceManager : IDeviceManager
         {
             if (IsBackingOff(device))
             {
+                continue;
+            }
+
+            var needsWork = device.State == UsbDeviceState.NotShared || (autoAttach && device.State != UsbDeviceState.Attached);
+            var remaining = SettleRemaining(device);
+            if (needsWork && remaining > TimeSpan.Zero)
+            {
+                settleWait = remaining > settleWait ? remaining : settleWait;
                 continue;
             }
 
@@ -375,7 +466,7 @@ public sealed class DeviceManager : IDeviceManager
             }
 
             _log.Info($"Auto-attach: {name} to WSL2.");
-            var attach = await _usbipd.AttachToWslAsync(device.BusId!, cancellationToken).ConfigureAwait(false);
+            var attach = await AutoAttachAsync(device.BusId!, cancellationToken).ConfigureAwait(false);
             changed = true;
             if (attach.Success)
             {
@@ -388,7 +479,21 @@ public sealed class DeviceManager : IDeviceManager
             }
         }
 
-        return changed;
+        return (changed, settleWait);
+    }
+
+    private async Task<OperationResult> AutoAttachAsync(string busId, CancellationToken cancellationToken)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(AutoAttachTimeout);
+        try
+        {
+            return await _usbipd.AttachToWslAsync(busId, timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return OperationResult.Fail($"usbipd did not finish within {AutoAttachTimeout.TotalSeconds:0} seconds.");
+        }
     }
 
     private async Task<string?> BindAndAttachAsync(UsbDevice device, CancellationToken cancellationToken)
@@ -413,7 +518,49 @@ public sealed class DeviceManager : IDeviceManager
             return [];
         }
 
-        return await _usbipd.GetDevicesAsync(cancellationToken).ConfigureAwait(false);
+        var devices = await _usbipd.GetDevicesAsync(cancellationToken).ConfigureAwait(false);
+        TrackChanges(devices);
+        return devices;
+    }
+
+    // The first read is the baseline (devices present at startup are not "new"); later appearances and state changes start a settle period.
+    private void TrackChanges(IReadOnlyList<UsbDevice> devices)
+    {
+        var now = _clock();
+        lock (_lock)
+        {
+            var present = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var device in devices.Where(d => d.IsConnected))
+            {
+                var key = FailureKey(device.BusId, device.DeviceKey);
+                present.Add(key);
+                if (!_lastChange.TryGetValue(key, out var last) || last.State != device.State)
+                {
+                    _lastChange[key] = (device.State, _baselineTaken ? now : DateTimeOffset.MinValue);
+                }
+            }
+
+            foreach (var key in _lastChange.Keys.Where(k => !present.Contains(k)).ToList())
+            {
+                _lastChange.Remove(key);
+            }
+
+            _baselineTaken = true;
+        }
+    }
+
+    private TimeSpan SettleRemaining(UsbDevice device)
+    {
+        lock (_lock)
+        {
+            if (!_lastChange.TryGetValue(FailureKey(device.BusId, device.DeviceKey), out var last) || last.Since == DateTimeOffset.MinValue)
+            {
+                return TimeSpan.Zero;
+            }
+
+            var remaining = SettleTime - (_clock() - last.Since);
+            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+        }
     }
 
     private static IEnumerable<UsbDevice> ConnectedManaged(IReadOnlyList<UsbDevice> devices, AppSettings settings) =>

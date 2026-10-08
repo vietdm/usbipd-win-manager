@@ -17,9 +17,20 @@ public sealed class DeviceManagerTests
     private readonly FakeSettingsStore _settings = new();
     private readonly TestLog _log = new();
     private readonly FakeClock _clock = new();
+    private readonly List<TimeSpan> _delays = [];
 
-    private DeviceManager Create() =>
-        new(_usbipd, _wsl, _settings, _log, () => _clock.Now, d => d.Contains("Keyboard", StringComparison.OrdinalIgnoreCase));
+    // Waits advance the fake clock instead of sleeping.
+    private DeviceManager Create()
+    {
+        var manager = new DeviceManager(_usbipd, _wsl, _settings, _log, () => _clock.Now, d => d.Contains("Keyboard", StringComparison.OrdinalIgnoreCase));
+        manager.Delay = (delay, _) =>
+        {
+            _delays.Add(delay);
+            _clock.Advance(delay);
+            return Task.CompletedTask;
+        };
+        return manager;
+    }
 
     private void Remember(string busId, string key, string description = "Pixel 8") =>
         _settings.Update(s => s.ManagedDevices.Add(new ManagedDevice(busId, key, description, _clock.Now)));
@@ -318,6 +329,97 @@ public sealed class DeviceManagerTests
         var entry = Assert.Single(manager.Entries);
         Assert.False(entry.IsManaged);
         Assert.Equal(UsbDeviceState.NotShared, entry.State);
+    }
+
+    [Fact]
+    public async Task Turning_off_waits_for_the_re_enumeration_after_detach_before_unbinding()
+    {
+        SetMode(UsbMode.Wsl);
+        Remember(PortA, Pixel);
+        _usbipd.Plug(PortA, Pixel, "Pixel 8", UsbDeviceState.Attached);
+        _usbipd.MissingReadsAfterDetach = 3;
+        var manager = Create();
+        await manager.RefreshAsync();
+
+        var result = await manager.SetManagedAsync(manager.Entries[0], false);
+
+        Assert.True(result.Success);
+        Assert.Equal(["detach 1-4", "unbind 1-4"], _usbipd.Actions);
+        Assert.Empty(_settings.Current.ManagedDevices);
+        Assert.Equal(UsbDeviceState.NotShared, Assert.Single(manager.Entries).State);
+        Assert.False(_log.Contains(LogLevel.Error, "Could not stop sharing"));
+    }
+
+    [Fact]
+    public async Task Turning_off_stays_off_when_the_device_does_not_come_back_after_detach()
+    {
+        SetMode(UsbMode.Wsl);
+        Remember(PortA, Pixel);
+        _usbipd.Plug(PortA, Pixel, "Pixel 8", UsbDeviceState.Attached);
+        _usbipd.MissingReadsAfterDetach = 1000;
+        var manager = Create();
+        await manager.RefreshAsync();
+
+        var result = await manager.SetManagedAsync(manager.Entries[0], false);
+
+        Assert.True(result.Success);
+        Assert.Empty(_settings.Current.ManagedDevices);
+        Assert.DoesNotContain(_usbipd.Actions, a => a.StartsWith("attach", StringComparison.Ordinal));
+        Assert.True(_log.Contains(LogLevel.Warning, "is OFF and back in Windows, but it is still shared"));
+        Assert.True(_delays.Sum(d => d.TotalSeconds) >= DeviceManager.ReenumerationTimeout.TotalSeconds);
+    }
+
+    [Fact]
+    public async Task Auto_attach_waits_until_a_changed_device_has_settled()
+    {
+        SetMode(UsbMode.Wsl);
+        Remember(PortA, Pixel);
+        _usbipd.Plug(PortA, Pixel, "Pixel 8", UsbDeviceState.Attached);
+        var manager = Create();
+        await manager.RefreshAsync();
+        Assert.Empty(_delays);
+
+        // Something detached it (WSL restart, device reset): it is re-attached only after the settle time.
+        _usbipd.Plug(PortA, Pixel, "Pixel 8", UsbDeviceState.Shared);
+        _usbipd.ClearCalls();
+        var start = _clock.Now;
+        await manager.RefreshAsync();
+
+        Assert.Equal(["attach 1-4"], _usbipd.Actions);
+        Assert.Equal(DeviceManager.SettleTime, _clock.Now - start);
+        Assert.Equal(UsbDeviceState.Attached, manager.Entries[0].State);
+    }
+
+    [Fact]
+    public async Task Devices_present_at_the_first_read_do_not_wait_to_settle()
+    {
+        SetMode(UsbMode.Wsl);
+        Remember(PortA, Pixel);
+        _usbipd.Plug(PortA, Pixel, "Pixel 8", UsbDeviceState.Shared);
+        var manager = Create();
+
+        await manager.RefreshAsync();
+
+        Assert.Empty(_delays);
+        Assert.Equal(["attach 1-4"], _usbipd.Actions);
+    }
+
+    [Fact]
+    public async Task A_hanging_auto_attach_gives_up_after_the_auto_attach_timeout()
+    {
+        SetMode(UsbMode.Wsl);
+        Remember(PortA, Pixel);
+        _usbipd.Plug(PortA, Pixel, "Pixel 8", UsbDeviceState.Shared);
+        _usbipd.AttachDelay = TimeSpan.FromSeconds(30);
+        var manager = Create();
+        manager.AutoAttachTimeout = TimeSpan.FromMilliseconds(50);
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        await manager.RefreshAsync();
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(5), $"took {watch.Elapsed}");
+        Assert.True(_log.Contains(LogLevel.Error, "did not finish within"));
+        Assert.Equal(UsbDeviceState.Shared, manager.Entries[0].State);
     }
 
     [Fact]

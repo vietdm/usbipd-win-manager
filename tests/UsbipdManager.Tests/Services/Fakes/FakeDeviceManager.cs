@@ -14,7 +14,7 @@ public sealed class FakeDeviceManager : IDeviceManager
     public int RefreshCalls => Volatile.Read(ref _refreshCalls);
 
     /// <summary>When set, <see cref="RefreshAsync"/> waits for it (to keep the gate busy).</summary>
-    public Func<Task>? RefreshHook { get; set; }
+    public Func<CancellationToken, Task>? RefreshHook { get; set; }
 
     public Exception? RefreshException { get; set; }
 
@@ -31,7 +31,7 @@ public sealed class FakeDeviceManager : IDeviceManager
         Interlocked.Increment(ref _refreshCalls);
         if (RefreshHook is not null)
         {
-            await RefreshHook();
+            await RefreshHook(cancellationToken);
         }
 
         if (RefreshException is not null)

@@ -265,7 +265,7 @@ public sealed class AppControllerTests : IDisposable
         var controller = Create();
         await controller.StartAsync();
         var release = new TaskCompletionSource();
-        _devices.RefreshHook = () => release.Task;
+        _devices.RefreshHook = _ => release.Task;
         var before = _devices.RefreshCalls;
 
         var running = controller.RefreshDevicesAsync();
@@ -278,6 +278,47 @@ public sealed class AppControllerTests : IDisposable
         await running;
 
         await WaitUntil(() => _devices.RefreshCalls == before + 2);
+    }
+
+    [Fact]
+    public async Task A_user_action_cancels_a_running_background_refresh_instead_of_waiting()
+    {
+        var controller = Create();
+        await controller.StartAsync();
+        _devices.RefreshHook = ct => Task.Delay(Timeout.Infinite, ct);
+        var background = controller.BackgroundRefreshAsync();
+        await WaitUntil(() => _gate.IsBusy);
+        _devices.RefreshHook = null;
+
+        var watch = Stopwatch.StartNew();
+        await controller.SwitchToWindowsAsync();
+        await background;
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), $"took {watch.Elapsed}");
+        Assert.Equal("windows", _modes.Calls[^1]);
+        Assert.True(_log.Contains(LogLevel.Info, "Stopping the background device refresh"));
+        Assert.False(_log.Contains(LogLevel.Error, "Unexpected error"));
+    }
+
+    [Fact]
+    public async Task A_user_action_does_not_cancel_another_user_action()
+    {
+        var controller = Create();
+        await controller.StartAsync();
+        var release = new TaskCompletionSource();
+        _devices.RefreshHook = _ => release.Task;
+        var first = controller.RefreshDevicesAsync();
+        await WaitUntil(() => _gate.IsBusy);
+        _devices.RefreshHook = null;
+
+        var second = controller.SwitchToWindowsAsync();
+        await Task.Delay(50);
+        Assert.False(second.IsCompleted);
+
+        release.SetResult();
+        await first;
+        await second;
+        Assert.False(_log.Contains(LogLevel.Info, "Stopping the background device refresh"));
     }
 
     [Fact]
@@ -335,7 +376,7 @@ public sealed class AppControllerTests : IDisposable
         var controller = Create();
         await controller.StartAsync();
         var release = new TaskCompletionSource();
-        _devices.RefreshHook = () => release.Task;
+        _devices.RefreshHook = _ => release.Task;
         var running = controller.RefreshDevicesAsync();
         await WaitUntil(() => _gate.IsBusy);
 

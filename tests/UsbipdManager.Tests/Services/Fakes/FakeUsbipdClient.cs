@@ -9,6 +9,13 @@ public sealed class FakeUsbipdClient : IUsbipdClient
     private readonly object _lock = new();
     private readonly List<UsbDevice> _devices = [];
     private readonly List<string> _calls = [];
+    private readonly Dictionary<string, int> _reenumerating = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Like real usbipd: after a detach the device is missing from this many state reads (re-enumeration).</summary>
+    public int MissingReadsAfterDetach { get; set; }
+
+    /// <summary>Attach waits this long (honoring cancellation) before it completes, to simulate a hanging attach.</summary>
+    public TimeSpan AttachDelay { get; set; }
 
     public string? ExecutablePath { get; set; } = @"C:\Program Files\usbipd-win\usbipd.exe";
 
@@ -95,7 +102,19 @@ public sealed class FakeUsbipdClient : IUsbipdClient
             throw GetDevicesException;
         }
 
-        return Task.FromResult(Devices);
+        lock (_lock)
+        {
+            IReadOnlyList<UsbDevice> visible = _devices.Where(d => d.BusId is null || !_reenumerating.ContainsKey(d.BusId)).ToList();
+            foreach (var busId in _reenumerating.Keys.ToList())
+            {
+                if (--_reenumerating[busId] <= 0)
+                {
+                    _reenumerating.Remove(busId);
+                }
+            }
+
+            return Task.FromResult(visible);
+        }
     }
 
     public Task<OperationResult> BindAsync(string busId, CancellationToken cancellationToken = default) =>
@@ -104,11 +123,30 @@ public sealed class FakeUsbipdClient : IUsbipdClient
     public Task<OperationResult> UnbindAsync(string busId, CancellationToken cancellationToken = default) =>
         Change($"unbind {busId}", busId, FailUnbind, d => d with { State = UsbDeviceState.NotShared });
 
-    public Task<OperationResult> AttachToWslAsync(string busId, CancellationToken cancellationToken = default) =>
-        Change($"attach {busId}", busId, FailAttach, d => d.State == UsbDeviceState.NotShared ? null : d with { State = UsbDeviceState.Attached });
+    public async Task<OperationResult> AttachToWslAsync(string busId, CancellationToken cancellationToken = default)
+    {
+        if (AttachDelay > TimeSpan.Zero)
+        {
+            Record($"attach {busId} (waiting)");
+            await Task.Delay(AttachDelay, cancellationToken);
+        }
 
-    public Task<OperationResult> DetachAsync(string busId, CancellationToken cancellationToken = default) =>
-        Change($"detach {busId}", busId, null, d => d with { State = UsbDeviceState.Shared });
+        return await Change($"attach {busId}", busId, FailAttach, d => d.State == UsbDeviceState.NotShared ? null : d with { State = UsbDeviceState.Attached });
+    }
+
+    public async Task<OperationResult> DetachAsync(string busId, CancellationToken cancellationToken = default)
+    {
+        var result = await Change($"detach {busId}", busId, null, d => d with { State = UsbDeviceState.Shared });
+        if (result.Success && MissingReadsAfterDetach > 0)
+        {
+            lock (_lock)
+            {
+                _reenumerating[busId] = MissingReadsAfterDetach;
+            }
+        }
+
+        return result;
+    }
 
     public Task<OperationResult> DetachAllAsync(CancellationToken cancellationToken = default)
     {
@@ -137,7 +175,7 @@ public sealed class FakeUsbipdClient : IUsbipdClient
 
         lock (_lock)
         {
-            var index = _devices.FindIndex(d => d.BusId == busId);
+            var index = _reenumerating.ContainsKey(busId) ? -1 : _devices.FindIndex(d => d.BusId == busId);
             if (index < 0)
             {
                 return Task.FromResult(OperationResult.Fail($"There is no device with busid '{busId}'."));

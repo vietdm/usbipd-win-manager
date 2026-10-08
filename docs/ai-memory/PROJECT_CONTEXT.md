@@ -57,7 +57,7 @@ NuGet packages: `System.Management` 10.0.0, `System.ServiceProcess.ServiceContro
 - **Layering**: UI → `IAppController` (the only class using `IOperationGate`) → `EnvironmentChecker`, `InitService`, `DeviceManager`, `ModeSwitcher` → `UsbipdClient`, `WslClient`, `UsbipdServiceController`, `UsbipdInstaller` → `IProcessRunner`.
   Inner services are not gated; taking the gate inside them would deadlock.
 - **Startup** (`AppController.StartAsync`): environment checks → start device monitoring → decide the mode (restore WSL2 if allowed and possible; if restore is off save Windows; if restore is on but switching is not possible yet, keep WSL2 and log a warning) → device refresh.
-- **Background refresh**: device events debounced 1.5 s + every 30 s while usbipd is ready, through `TryRunAsync`; a refresh skipped because the gate was busy runs right after. `IsBusy` therefore flips briefly; the UI's busy state counts only user-started operations.
+- **Background refresh**: device events debounced 1.5 s + every 30 s while usbipd is ready, through `TryRunAsync`; a refresh skipped because the gate was busy runs right after. `IsBusy` therefore flips briefly; the UI's busy state counts only user-started operations. A user action cancels a running background refresh (`AppController.CancelBackgroundWork`, logs "Stopping the background device refresh...") instead of waiting behind it; user actions never cancel each other.
 - **Init** (labelled "Refresh" once `EnvironmentReport.CanSwitch`; same command): checks → (unsupported → stop) → winget install usbipd-win if missing → service Disabled → Automatic → start service → bind connected managed devices → checks again.
 - **Windows / WSL2 buttons**: the current mode's button (and tray item) is disabled. **Windows button**: `usbipd detach --all` (all devices, managed or not), stop keep-alive, save mode Windows.
 - **WSL2 button**: ensure a WSL2 distro runs (keep-alive), save mode WSL2, attach connected managed devices. No managed device connected → warning, mode stays WSL2 so later plugs auto-attach.
@@ -69,7 +69,8 @@ NuGet packages: `System.Management` 10.0.0, `System.ServiceProcess.ServiceContro
 - `DeviceKey` = `VID_xxxx\SERIAL` when the instance ID ends with a real serial (no `&`), PID ignored because Android changes its PID with the USB mode (MTP/PTP/ADB); otherwise the full upper-cased instance ID (Windows-generated, port-based).
 - ON = same port AND same identity. Another device on that port is OFF and untouched; the same device on another port is OFF.
 - Turning ON: re-reads the state (refuses if another device is now on the port), `usbipd bind`, remembers, attaches immediately in WSL2 mode. Input-like devices (keyboard, mouse, HID, Bluetooth, ...) are confirmed in the UI first.
-- Turning OFF: detach if attached, `usbipd unbind`, forget. If detach/unbind fails the device stays managed.
+- Turning OFF: detach if attached, `usbipd unbind`, forget. After a detach, unbind waits for the re-enumeration (poll every 0.5 s, up to 10 s); if it still fails the device is turned OFF anyway with a warning (it is already back in Windows, and keeping it managed made auto-attach pull it back). Without a detach, a failed unbind keeps it managed.
+- Automatic bind/attach (`ApplyRulesAsync`) waits until a managed device has been unchanged for `SettleTime` (3 s) after it appeared or changed state (devices present at the first read count as settled); `RefreshAsync` waits and re-applies up to 3 times. Auto-attach times out after 20 s (`AutoAttachTimeout`), user-started attaches after 60 s.
 - Re-plug of a managed device on its port → auto bind, and auto attach in WSL2 mode with "Auto re-attach" on. Failed automatic attempts back off 30 s per device; unplugging clears the back-off.
 - Unmanaged devices are never bound/unbound by the app.
 
@@ -83,7 +84,7 @@ NuGet packages: `System.Management` 10.0.0, `System.ServiceProcess.ServiceContro
 - `bind` is persisted by usbipd per device instance; a bound device stays "Shared" on any port.
 - Install: `winget install --id dorssel.usbipd-win -e --silent ...`; exit codes 0, `0x8A15002B` (already installed) and `0x8A150109` (reboot required) count as success.
 - Service name `usbipd`. Starting a Disabled service fails, so Init sets it to Automatic first.
-- Observed 2026-10-08 (usbipd 5.3.0): `usbipd detach` makes the device re-enumerate on Windows, so its busid is missing from `usbipd state` for ~1-3 s (an immediate `unbind --busid` fails with "There is no device with busid"). An `attach` started during that window hung until the 60 s timeout once (phone, 2-11).
+- Observed 2026-10-08 (usbipd 5.3.0): `usbipd detach` makes the device re-enumerate on Windows, so its busid is missing from `usbipd state` for ~1-3 s (an immediate `unbind --busid` fails with "There is no device with busid"). An `attach` started during that window hung until the 60 s timeout once (phone, 2-11); hence the settle time, the unbind wait and the shorter auto-attach timeout (section 5).
 - Only read-only commands (`state`, `--version`) are not echoed to the console; every state-changing command is logged as `$ ...`.
 
 ## 7. WSL facts used by the code

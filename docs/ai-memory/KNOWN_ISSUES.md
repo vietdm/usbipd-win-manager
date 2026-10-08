@@ -17,12 +17,10 @@ Only open issues and limitations backed by the current code or by observed behav
    The maintainer turned Smart App Control off. A Microsoft-trusted certificate (Azure Trusted Signing, CA-issued OV) can be used later through `$env:USBIPD_SIGN_THUMBPRINT`.
    The signed pipeline was tested end to end with a temporary certificate; `[NEEDS CONFIRMATION]` the UAC prompt shows "Verified publisher: Minh Viet" after `New-CodeSigningCert.ps1`.
 
-1a. **Switching a device OFF in WSL2 mode does not work for devices that re-enumerate on detach** (observed with a camera and a phone, 2026-10-08). `DeviceManager.TurnOffAsync` detaches, then `unbind --busid` fails because the busid is briefly gone; the entry stays managed, so the next device event auto-attaches it again. In Windows mode OFF works (no detach). Fix ideas: drop the entry from the managed list before detaching, then unbind with a retry until the busid is back (or by `--guid` from `PersistedGuid`, `[NEEDS CONFIRMATION]` on 5.3.0).
-1b. **A hanging background auto-attach blocks user actions for up to 60 s.** Background refreshes hold `IOperationGate`; the attach timeout is 60 s, and a user click (Windows button) waits for it (observed: 17:43:29 attach hung, Windows switch ran 17:44:29 right after the timeout, itself in 0.1 s). Fix ideas: settle delay before auto-attach after a re-enumeration, a shorter auto-attach timeout, and cancelling background work when the user starts an operation.
 
 2. **Not yet verified against a real usbipd-win and real devices.**
    usbipd-win was not installed while the code was written; the `usbipd state` JSON shape, error texts and idempotency rules come from usbipd-win 4.x behavior and are covered by unit tests only.
-   Manual checks still needed: Init installing usbipd, bind/attach/detach with a phone, re-plug auto-attach, reboot autostart without UAC, `--exit` during an installer upgrade.
+   Manual checks still needed: Init installing usbipd, bind/attach/detach with a phone, re-plug auto-attach, reboot autostart without UAC, `--exit` during an installer upgrade, switching a camera/phone OFF in WSL2 mode (unbind after re-enumeration), a user click cancelling a hanging auto-attach.
 
 ## Medium
 

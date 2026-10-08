@@ -7,6 +7,7 @@ namespace UsbipdManager.Core.Services;
 /// <summary>
 /// Every public action runs through the gate and never throws (except cancellation through the caller's token).
 /// Device events are debounced; a refresh that finds the gate busy runs right after the current operation.
+/// A user action cancels a running background refresh (e.g. a hanging auto-attach) instead of waiting behind it.
 /// <see cref="StateChanged"/> is raised on any thread.
 /// </summary>
 public sealed class AppController : IAppController, IDisposable
@@ -26,7 +27,10 @@ public sealed class AppController : IAppController, IDisposable
     private readonly TimeSpan _periodicRefresh;
     private readonly CancellationTokenSource _lifetime = new();
     private readonly object _timerLock = new();
+    private readonly object _backgroundLock = new();
     private readonly Timer _debounceTimer;
+
+    private CancellationTokenSource? _background;
 
     private Timer? _periodicTimer;
     private volatile EnvironmentReport? _report;
@@ -233,18 +237,39 @@ public sealed class AppController : IAppController, IDisposable
         }
 
         bool ran;
+        using var background = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        lock (_backgroundLock)
+        {
+            _background = background;
+        }
+
         try
         {
-            ran = await _gate.TryRunAsync(ct => _devices.RefreshAsync(ct), _lifetime.Token).ConfigureAwait(false);
+            ran = await _gate.TryRunAsync(ct => _devices.RefreshAsync(ct), background.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
+            return;
+        }
+        catch (OperationCanceledException) when (background.IsCancellationRequested)
+        {
+            // CancelBackgroundWork already logged it; the user's action refreshes the devices itself.
             return;
         }
         catch (Exception ex)
         {
             _log.Error($"Unexpected error: {ex.Message}");
             ran = true;
+        }
+        finally
+        {
+            lock (_backgroundLock)
+            {
+                if (ReferenceEquals(_background, background))
+                {
+                    _background = null;
+                }
+            }
         }
 
         if (ran)
@@ -264,6 +289,7 @@ public sealed class AppController : IAppController, IDisposable
 
     private async Task RunGuardedAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken)
     {
+        CancelBackgroundWork();
         try
         {
             await _gate.RunAsync(
@@ -286,6 +312,31 @@ public sealed class AppController : IAppController, IDisposable
         {
             RunPendingRefresh();
             RaiseStateChanged();
+        }
+    }
+
+    // Only a refresh that is running (it holds the gate) is cancelled. Cancel runs outside the lock because its callbacks
+    // can resume the refresh inline; the refresh may dispose the source meanwhile, which is harmless here.
+    private void CancelBackgroundWork()
+    {
+        CancellationTokenSource? background;
+        lock (_backgroundLock)
+        {
+            background = _background;
+            if (background is null || background.IsCancellationRequested || !_gate.IsBusy)
+            {
+                return;
+            }
+        }
+
+        _log.Info("Stopping the background device refresh for your action...");
+        try
+        {
+            background.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+            // The refresh finished in the meantime.
         }
     }
 
