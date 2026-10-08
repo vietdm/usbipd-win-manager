@@ -285,3 +285,4 @@ All rewritten in English for this project (the copied files belong to another pr
 | Q14 | AGENTS.md | Yes. |
 | Q15 | Toolchain | Installed by the maintainer. |
 | Q16 | Code signing (2026-10-08) | Personal use; Smart App Control turned off by the maintainer. Self-signed certificate, trusted via LocalMachine\Root (`dist/certificate/` for other machines). `build.ps1` signs by default and checks the signing prerequisites before building; `--no-sign` opts out. |
+| Q17 | License (2026-10-08) | PolyForm Noncommercial 1.0.0 (`LICENSE`): personal/noncommercial use allowed, commercial use not. |

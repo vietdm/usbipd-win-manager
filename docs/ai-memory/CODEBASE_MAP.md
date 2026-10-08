@@ -11,6 +11,7 @@
 usbipd-win-manager/
 ├── CLAUDE.md, AGENTS.md            # Agent instructions (AGENTS.md points to CLAUDE.md)
 ├── README.md                       # User + developer quick start
+├── LICENSE                         # PolyForm Noncommercial 1.0.0 (personal/noncommercial use only)
 ├── UsbipdManager.slnx              # Solution
 ├── Directory.Build.props           # Version/dates from version.json, product metadata, shared compiler settings
 ├── version.json                    # { version, createdDate, updatedDate }

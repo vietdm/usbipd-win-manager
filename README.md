@@ -65,4 +65,6 @@ Project documentation for developers and AI agents: [CLAUDE.md](CLAUDE.md), [doc
 
 ## License
 
-© 2026 Minh Viet. All rights reserved.
+© 2026 Minh Viet. Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE): free for personal and other noncommercial use; commercial use is not permitted.
+
+usbipd-win, which the app installs and calls, is a separate project with its own license (GPL-3.0).
