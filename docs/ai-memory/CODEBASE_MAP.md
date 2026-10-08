@@ -44,11 +44,11 @@ usbipd-win-manager/
 │       ├── app.manifest            # requireAdministrator, PerMonitorV2
 │       ├── App.xaml(.cs)           # Composition root, CLI handling, lifetime
 │       ├── Startup/                # CommandLineOptions
-│       ├── Views/                  # MainWindow, SettingsWindow, AboutWindow, MessageDialog
-│       ├── ViewModels/             # Main, Console, DeviceItem, Settings, About
+│       ├── Views/                  # MainWindow, SettingsWindow, AboutWindow, HelpWindow (FAQ), MessageDialog
+│       ├── ViewModels/             # Main, Console (1000-line cap), DeviceItem, Settings, About, Help (FAQ list)
 │       ├── Tray/                   # TrayIconService (NotifyIcon + menu), TrayMenuRenderer (themed menu)
 │       ├── Theme/                  # Colors.Light/Dark, Typography, Icons, Controls, ThemeManager, DESIGN.md
-│       ├── Controls/               # IconView, UiProps, UiChrome, Converters
+│       ├── Controls/               # IconView, UiProps, UiChrome, FocusCues (keyboard-only focus ring), Converters
 │       ├── Services/               # IDialogService, DialogService
 │       ├── Mvvm/                   # ObservableObject, RelayCommand (+ async)
 │       ├── Interop/                # NativeMethods (window frame, foreground)
@@ -83,6 +83,7 @@ Generated, ignored: `bin/`, `obj/`, `.artifacts/` (build outputs, `.artifacts/pu
 | Managed-device behavior | `Core/Services/DeviceManager.cs` (+ `DeviceManagerTests`, incl. the maintainer scenario) |
 | Startup / restore / shutdown order | `Core/Services/AppController.cs` (+ `AppControllerTests`) |
 | Console wording | the service that logs it; device wording in `Core/Services/DeviceText.cs` |
+| A Help / FAQ entry | `ViewModels/HelpViewModel.cs` (`Questions`) |
 | A new setting | `Core/Models/AppSettings.cs` → `ViewModels/SettingsViewModel.cs` → `Views/SettingsWindow.xaml` → consumer |
 | Colors / styles | `Theme/Colors.*.xaml` (keep both files' keys identical), `Theme/Controls.xaml`, `Theme/DESIGN.md` |
 | Icons | `tools/generate-icons.ps1`, re-run it, commit `Assets/*.ico` |

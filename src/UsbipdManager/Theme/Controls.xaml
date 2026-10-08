@@ -11,7 +11,8 @@
     <ui:InverseBoolToVisibilityConverter x:Key="Conv.InverseBoolToVisibility" />
     <ui:NullToCollapsedConverter x:Key="Conv.NullToCollapsed" />
 
-    <!-- ===== Focus (keyboard only; 2 px ring, >= 3:1 against the surface) ===== -->
+    <!-- ===== Focus (keyboard only; 2 px ring, >= 3:1 against the surface).
+         Buttons and switches drop the ring unless ui:FocusCues.IsKeyboardMode is set (Tab / arrow keys), so a click never leaves one. ===== -->
     <Style x:Key="FocusVisual.Ring">
         <Setter Property="Control.Template">
             <Setter.Value>
@@ -97,6 +98,11 @@
         <Setter Property="HorizontalContentAlignment" Value="Center" />
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="Template" Value="{StaticResource Template.Button}" />
+        <Style.Triggers>
+            <Trigger Property="ui:FocusCues.IsKeyboardMode" Value="False">
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <Style x:Key="Button.Secondary" TargetType="Button" BasedOn="{StaticResource Button.Base}">
@@ -220,6 +226,14 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="Bd" Property="Opacity" Value="0.45" />
                         </Trigger>
+                        <!-- The current mode button is always disabled (pressing it again would repeat the switch); keep it fully visible. -->
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="ui:UiProps.IsActive" Value="True" />
+                                <Condition Property="IsEnabled" Value="False" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Bd" Property="Opacity" Value="1" />
+                        </MultiTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -347,6 +361,11 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+        <Style.Triggers>
+            <Trigger Property="ui:FocusCues.IsKeyboardMode" Value="False">
+                <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            </Trigger>
+        </Style.Triggers>
     </Style>
 
     <!-- ===== ComboBox ===== -->

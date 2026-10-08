@@ -58,8 +58,8 @@ NuGet packages: `System.Management` 10.0.0, `System.ServiceProcess.ServiceContro
   Inner services are not gated; taking the gate inside them would deadlock.
 - **Startup** (`AppController.StartAsync`): environment checks → start device monitoring → decide the mode (restore WSL2 if allowed and possible; if restore is off save Windows; if restore is on but switching is not possible yet, keep WSL2 and log a warning) → device refresh.
 - **Background refresh**: device events debounced 1.5 s + every 30 s while usbipd is ready, through `TryRunAsync`; a refresh skipped because the gate was busy runs right after. `IsBusy` therefore flips briefly; the UI's busy state counts only user-started operations.
-- **Init**: checks → (unsupported → stop) → winget install usbipd-win if missing → service Disabled → Automatic → start service → bind connected managed devices → checks again.
-- **Windows button**: `usbipd detach --all` (all devices, managed or not), stop keep-alive, save mode Windows.
+- **Init** (labelled "Refresh" once `EnvironmentReport.CanSwitch`; same command): checks → (unsupported → stop) → winget install usbipd-win if missing → service Disabled → Automatic → start service → bind connected managed devices → checks again.
+- **Windows / WSL2 buttons**: the current mode's button (and tray item) is disabled. **Windows button**: `usbipd detach --all` (all devices, managed or not), stop keep-alive, save mode Windows.
 - **WSL2 button**: ensure a WSL2 distro runs (keep-alive), save mode WSL2, attach connected managed devices. No managed device connected → warning, mode stays WSL2 so later plugs auto-attach.
 - **Unsupported machine**: no WSL or no WSL2 distro → red banner, Windows/WSL2/toggles/tray switch items disabled; Init stays enabled to re-check. WSL is never installed automatically.
 

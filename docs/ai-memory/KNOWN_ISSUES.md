@@ -30,10 +30,10 @@ Only open issues and limitations backed by the current code or by observed behav
 ## Low
 
 6. **schtasks output encoding.** With non-ASCII characters in the exe path the queried task command may not match, so the task is re-registered (Info log) on every startup. Harmless.
-7. **Single-instance startup gap.** A second launch in the few milliseconds between the mutex and the signal events being created does nothing.
+7. **Single-instance gaps.** A second launch in the few milliseconds between the mutex and the signal events being created does nothing. A launch while the running instance is exiting (returning devices, up to ~15 s) also does nothing: the exiting instance still owns the mutex and ignores Activate, so the new process quits and no instance is left.
 8. **Installer upgrade does not remove autostart.** Unticking "Start with Windows" during an upgrade leaves an existing task in place; use the Settings switch.
 9. **Size.** The self-contained single-file exe is ~72 MB (installer ~67 MB).
-10. **Unverified UI details** (need an elevated interactive run): Windows 11 rounded frame color, tray icon sharpness at 125/150 % scaling, themed tray menu, foreground activation from a second launch, balloons with Focus Assist on, live System theme switching. Reduced-motion is not honored (only a 120 ms switch slide and the busy bar animate).
+10. **Unverified UI details** (need an elevated interactive run): Windows 11 rounded frame color, tray icon sharpness at 125/150 % scaling, themed tray menu, foreground activation from a second launch, balloons with Focus Assist on, live System theme switching, no focus ring after a click (FocusCues) but a ring after Tab, Help window layout. Reduced-motion is not honored (only a 120 ms switch slide and the busy bar animate).
 
 ## By design (not bugs)
 

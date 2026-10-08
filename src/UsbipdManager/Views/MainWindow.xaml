@@ -248,19 +248,20 @@
 
             <!-- Actions -->
             <UniformGrid Grid.Row="4" Columns="3">
-                <Button Style="{DynamicResource Button.Mode}" Margin="0,0,6,0" Content="Init" Command="{Binding InitCommand}"
+                <Button Style="{DynamicResource Button.Mode}" Margin="0,0,6,0" Content="{Binding InitText}" Command="{Binding InitCommand}"
                         ui:UiProps.Icon="{DynamicResource Icon.Refresh}"
-                        ToolTip="Re-check the environment and fix what is missing: install usbipd-win, start its service, share managed devices" />
+                        AutomationProperties.HelpText="{Binding InitToolTip}"
+                        ToolTip="{Binding InitToolTip}" ToolTipService.ShowOnDisabled="True" />
                 <Button Style="{DynamicResource Button.Mode}" Margin="3,0" Content="Windows" Command="{Binding WindowsCommand}"
                         ui:UiProps.Icon="{DynamicResource Icon.Windows}" ui:UiProps.IconFilled="True"
                         ui:UiProps.IsActive="{Binding IsWindowsActive}"
-                        AutomationProperties.HelpText="Move the managed devices to Windows"
-                        ToolTip="Move the managed devices to Windows" ToolTipService.ShowOnDisabled="True" />
+                        AutomationProperties.HelpText="{Binding WindowsToolTip}"
+                        ToolTip="{Binding WindowsToolTip}" ToolTipService.ShowOnDisabled="True" />
                 <Button Style="{DynamicResource Button.Mode}" Margin="6,0,0,0" Content="WSL2" Command="{Binding WslCommand}"
                         ui:UiProps.Icon="{DynamicResource Icon.Terminal}"
                         ui:UiProps.IsActive="{Binding IsWslActive}"
-                        AutomationProperties.HelpText="Move the managed devices to WSL2"
-                        ToolTip="Move the managed devices to WSL2" ToolTipService.ShowOnDisabled="True" />
+                        AutomationProperties.HelpText="{Binding WslToolTip}"
+                        ToolTip="{Binding WslToolTip}" ToolTipService.ShowOnDisabled="True" />
             </UniformGrid>
         </Grid>
 
@@ -280,7 +281,7 @@
                 <TextBlock Grid.Column="1" Style="{DynamicResource Text.Caption}" Text="{Binding Copyright}"
                            HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="NoWrap" />
                 <Button Grid.Column="2" Style="{DynamicResource Button.Subtle}" HorizontalAlignment="Right" Command="{Binding HelpCommand}"
-                        AutomationProperties.Name="Help" ToolTip="Where to report issues">
+                        AutomationProperties.Name="Help" ToolTip="Common questions and where to report issues">
                     <StackPanel Orientation="Horizontal">
                         <ui:IconView Geometry="{DynamicResource Icon.Help}" Width="16" Height="16" Margin="0,0,6,0"
                                      Foreground="{DynamicResource Brush.TextMuted}" />

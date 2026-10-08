@@ -32,7 +32,7 @@ Every text pair was checked: all >= 4.5:1 (lowest: light accent text on white 5.
 ## Rules applied
 
 - State is never shown by color alone: console level tags (`INFO`, `OK`, `WARN`, `ERROR`, `$`), text state badges, the "Active" tag on the current mode button, switch thumb position, and tray icons that differ in shape (window panes / `>_` prompt / warning triangle).
-- Keyboard: every control can be reached with Tab, has a visible 2 px focus ring, and icon-only buttons have `AutomationProperties.Name` plus a tooltip. Caption buttons are not focusable, as in Windows.
+- Keyboard: every control can be reached with Tab, has a visible 2 px focus ring, and icon-only buttons have `AutomationProperties.Name` plus a tooltip. Caption buttons are not focusable, as in Windows. Buttons and switches show the ring only after Tab / arrow keys (`Controls/FocusCues`): WPF otherwise also draws it when focus is restored on window activation, which left a ring on clicked buttons.
 - Feedback: a thin indeterminate bar and status text appear only while a user-started operation runs (not for the controller's background refreshes, so nothing blinks). Switch transitions take 100-120 ms and the final state is set at once.
 - Risky actions: switching on an input-like device asks first. Its primary button uses Danger and the safe choice (Cancel) is the default.
 - Windows: fixed size, custom title bar, minimize/maximize shown disabled, rounded DWM frame and border color on Windows 11.

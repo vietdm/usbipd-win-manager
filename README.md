@@ -28,11 +28,11 @@ The binaries are signed with a self-signed certificate. On a new machine, first 
 ## Usage
 
 1. Double-click the tray icon to open the window.
-2. Press **Init** once.
+2. Press **Init** once (it turns into **Refresh** when everything is ready).
 3. Turn on the switch of your phone in the device list.
 4. Press **WSL2** to give it to WSL (`adb devices` inside WSL now sees it) or **Windows** to give it back.
 
-Right-click the tray icon for Open, Switch to Windows, Switch to WSL2, About and Exit. Issues: vietdau33@gmail.com.
+Right-click the tray icon for Open, Switch to Windows, Switch to WSL2, About and Exit. **Help** in the window footer answers common problems (for example adb "no permissions" in WSL). Issues: vietdau33@gmail.com.
 
 ## Development
 

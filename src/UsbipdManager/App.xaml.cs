@@ -9,6 +9,7 @@ using UsbipdManager.Core.Services;
 using UsbipdManager.Core.Settings;
 using UsbipdManager.Core.Usbipd;
 using UsbipdManager.Core.Wsl;
+using UsbipdManager.Controls;
 using UsbipdManager.Interop;
 using UsbipdManager.Services;
 using UsbipdManager.Startup;
@@ -45,6 +46,7 @@ public partial class App : Application
     private MainWindowView? _mainWindow;
     private TrayIconService? _tray;
     private AboutWindow? _aboutWindow;
+    private HelpWindow? _helpWindow;
     private SettingsWindow? _settingsWindow;
     private bool _exiting;
     private bool _cleanedUp;
@@ -170,8 +172,9 @@ public partial class App : Application
 
         _theme = new ThemeManager(this);
         _theme.Apply(settings.Current.Theme);
+        FocusCues.Register();
 
-        _mainViewModel = new MainViewModel(_controller, log, _appInfo, _dialogs, Dispatcher, OpenSettings);
+        _mainViewModel = new MainViewModel(_controller, log, _appInfo, _dialogs, Dispatcher, OpenSettings, ShowHelp);
         _mainWindow = new MainWindowView(_mainViewModel);
         MainWindow = _mainWindow;
 
@@ -294,6 +297,34 @@ public partial class App : Application
         _aboutWindow.Activate();
     }
 
+    private void ShowHelp()
+    {
+        if (_exiting || _appInfo is null)
+        {
+            return;
+        }
+
+        if (_helpWindow is not null)
+        {
+            _helpWindow.Activate();
+            return;
+        }
+
+        _helpWindow = new HelpWindow(new HelpViewModel(_appInfo));
+        if (_mainWindow is { IsVisible: true })
+        {
+            _helpWindow.Owner = _mainWindow;
+        }
+        else
+        {
+            _helpWindow.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        }
+
+        _helpWindow.Closed += (_, _) => _helpWindow = null;
+        _helpWindow.Show();
+        _helpWindow.Activate();
+    }
+
     // ===== Signals and exit =====
 
     private void OnInstanceSignal(object? sender, InstanceSignal signal)
@@ -324,6 +355,7 @@ public partial class App : Application
         _exiting = true;
         _log?.Info("Exiting: returning all devices to Windows...");
         _aboutWindow?.Close();
+        _helpWindow?.Close();
         _settingsWindow?.Close();
         _mainViewModel?.SetExiting();
         _tray?.SetExiting();

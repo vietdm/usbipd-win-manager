@@ -29,11 +29,11 @@ public sealed record LogLine(DateTimeOffset Timestamp, LogLevel Level, string Me
 /// <summary>
 /// Feeds the console panel from <see cref="ILogService"/>. Log events arrive on any thread; they are queued and
 /// flushed to the UI thread in batches so a burst of command output costs one dispatcher round trip.
+/// The panel keeps the newest <see cref="MaxLines"/> lines (each new line drops the oldest); the full history is in the log files.
 /// </summary>
 public sealed class ConsoleViewModel : ObservableObject, IDisposable
 {
-    private const int MaxLines = 5000;
-    private const int TrimBatch = 500;
+    public const int MaxLines = 1000;
 
     private readonly ILogService _log;
     private readonly Dispatcher _dispatcher;
@@ -164,27 +164,26 @@ public sealed class ConsoleViewModel : ObservableObject, IDisposable
             _flushScheduled = false;
         }
 
-        if (clear)
+        var added = batch
+            .Where(entry => snapshot is null || !snapshot.Contains(entry))
+            .TakeLast(MaxLines)
+            .ToList();
+
+        if (clear || added.Count == MaxLines)
         {
             Lines.Clear();
         }
 
-        foreach (var entry in batch)
+        // Drop the oldest lines before adding, so the list never grows past the limit.
+        var excess = Lines.Count + added.Count - MaxLines;
+        for (var i = 0; i < excess; i++)
         {
-            if (snapshot is not null && snapshot.Contains(entry))
-            {
-                continue;
-            }
-
-            Lines.Add(new LogLine(entry.Timestamp, entry.Level, entry.Message));
+            Lines.RemoveAt(0);
         }
 
-        if (Lines.Count > MaxLines + TrimBatch)
+        foreach (var entry in added)
         {
-            for (var i = 0; i < TrimBatch; i++)
-            {
-                Lines.RemoveAt(0);
-            }
+            Lines.Add(new LogLine(entry.Timestamp, entry.Level, entry.Message));
         }
     }
 }

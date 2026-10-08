@@ -28,7 +28,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private UsbMode _mode;
     private EnvironmentReport? _report;
 
-    public MainViewModel(IAppController controller, ILogService log, IAppInfo appInfo, IDialogService dialogs, Dispatcher dispatcher, Action openSettings)
+    public MainViewModel(IAppController controller, ILogService log, IAppInfo appInfo, IDialogService dialogs, Dispatcher dispatcher, Action openSettings, Action openHelp)
     {
         _controller = controller;
         _log = log;
@@ -39,12 +39,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         Console = new ConsoleViewModel(log, dispatcher);
 
-        InitCommand = new AsyncCommand(() => RunUserOperationAsync("Running checks and fixes...", ct => _controller.InitAsync(ct)), () => CanInit, OnCommandError);
-        WindowsCommand = new AsyncCommand(SwitchToWindowsAsync, () => CanSwitch, OnCommandError);
-        WslCommand = new AsyncCommand(SwitchToWslAsync, () => CanSwitch, OnCommandError);
+        InitCommand = new AsyncCommand(
+            () => RunUserOperationAsync(IsReady ? "Refreshing..." : "Running checks and fixes...", ct => _controller.InitAsync(ct)),
+            () => CanInit,
+            OnCommandError);
+        WindowsCommand = new AsyncCommand(SwitchToWindowsAsync, () => CanSwitchToWindows, OnCommandError);
+        WslCommand = new AsyncCommand(SwitchToWslAsync, () => CanSwitchToWsl, OnCommandError);
         RefreshDevicesCommand = new AsyncCommand(() => RunUserOperationAsync("Refreshing devices...", ct => _controller.RefreshDevicesAsync(ct)), () => CanInit, OnCommandError);
         SettingsCommand = new RelayCommand(() => _openSettings(), () => !_isExiting);
-        HelpCommand = new RelayCommand(() => _dialogs.ShowMessage("Help", "Send issues to email vietdau33@gmail.com", DialogKind.Info));
+        HelpCommand = new RelayCommand(openHelp, () => !_isExiting);
 
         _controller.StateChanged += OnControllerStateChanged;
         Refresh();
@@ -92,7 +95,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool CanSwitch => IsReady && !IsBusy;
 
+    /// <summary>The current mode's button stays disabled: pressing it again would only repeat the switch.</summary>
+    public bool CanSwitchToWindows => CanSwitch && !IsWindowsActive;
+
+    public bool CanSwitchToWsl => CanSwitch && !IsWslActive;
+
+    public string WindowsToolTip => IsWindowsActive ? "Managed devices are already on Windows" : "Move the managed devices to Windows";
+
+    public string WslToolTip => IsWslActive ? "Managed devices are already in WSL2" : "Move the managed devices to WSL2";
+
     public bool CanInit => !IsBusy;
+
+    /// <summary>"Init" while something still has to be fixed; "Refresh" once the app is ready (same command).</summary>
+    public string InitText => IsReady ? "Refresh" : "Init";
+
+    public string InitToolTip => IsReady
+        ? "Re-check the environment and the devices, and fix what is missing"
+        : "Check the environment and fix what is missing: install usbipd-win, start its service, share managed devices";
 
     public bool IsChecking => _report is null;
 
@@ -296,6 +315,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         WslCommand.RaiseCanExecuteChanged();
         RefreshDevicesCommand.RaiseCanExecuteChanged();
         SettingsCommand.RaiseCanExecuteChanged();
+        HelpCommand.RaiseCanExecuteChanged();
         StateRefreshed?.Invoke(this, EventArgs.Empty);
     }
 }

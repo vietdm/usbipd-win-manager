@@ -43,7 +43,7 @@ A Windows desktop app that runs in the background (tray app, like Unikey) and sw
    1. A console panel that logs every action, including startup status (usbipd-win installed, usbipd service ready, WSL available, ...).
    2. Three buttons: **Init** (re-check and auto-fix: install usbipd-win, start the service), **Windows** (move managed devices to Windows), **WSL2** (move managed devices to WSL2).
    3. A footer: gear icon on the left (Settings), copyright in the middle, Help on the right.
-      Help shows "Send issues to email vietdau33@gmail.com".
+      Help shows a short FAQ, then "Send issues to email vietdau33@gmail.com".
 4. The UI is designed with the `ui-ux-pro-max` skill.
 5. Minimize and maximize are disabled. X hides the window to the tray. Right-clicking the tray icon shows a menu (section 6.6).
    Exit fully quits the app and stops its background work. About shows the author, dates and version.
@@ -189,7 +189,7 @@ The **mode** is the user's choice (Windows or WSL2), persisted in settings.
 
 - Left: gear icon button (accessible name "Settings") → Settings window.
 - Center: `© 2026 Minh Viet`.
-- Right: "Help" → styled dialog "Send issues to email vietdau33@gmail.com".
+- Right: "Help" → Help window: frequently asked questions (`HelpViewModel.Questions`, first one: adb "no permissions" in WSL), then "Send issues to email vietdau33@gmail.com".
 
 ## 7. Settings
 
@@ -243,9 +243,9 @@ Installer: per-machine to `C:\Program Files\USBIPD Manager\`, Start Menu shortcu
 
 - `ui-ux-pro-max` `--design-system` for a developer utility / system tray tool, then `--stack wpf`.
 - Tokens (color, typography, spacing, radius) and control styles live in `Theme/` resource dictionaries, swapped at runtime for Light/Dark; views use `DynamicResource` only.
-- Console: monospace, timestamped, level tags (`INFO`, `OK`, `WARN`, `ERROR`) plus color (never color alone), auto-scroll, Copy and Clear.
+- Console: monospace, timestamped, level tags (`INFO`, `OK`, `WARN`, `ERROR`) plus color (never color alone), auto-scroll, Copy and Clear. Keeps the newest 1000 lines (each new line drops the oldest); the log files keep everything.
 - Device list: description, BusId, VID:PID, state badge, managed switch, "Forget" for disconnected entries.
-- Action buttons: the active mode is highlighted; busy state shows progress and disables actions.
+- Action buttons: the active mode is highlighted and disabled (pressing it again would repeat the switch); busy state shows progress and disables actions. The Init button reads "Init" until the app is ready (usbipd installed and running, WSL2 present), then "Refresh" (same command).
 - Keyboard accessible, visible focus, 4.5:1 contrast.
 
 ## 10. AI Memory
@@ -286,3 +286,4 @@ All rewritten in English for this project (the copied files belong to another pr
 | Q15 | Toolchain | Installed by the maintainer. |
 | Q16 | Code signing (2026-10-08) | Personal use; Smart App Control turned off by the maintainer. Self-signed certificate, trusted via LocalMachine\Root (`dist/certificate/` for other machines). `build.ps1` signs by default and checks the signing prerequisites before building; `--no-sign` opts out. |
 | Q17 | License (2026-10-08) | PolyForm Noncommercial 1.0.0 (`LICENSE`): personal/noncommercial use allowed, commercial use not. |
+| Q18 | UI polish (2026-10-08) | Focus ring only after keyboard navigation (no ring after a click). Current mode button disabled. Console capped at 1000 lines. Help = FAQ + issue email. Init button labelled "Refresh" once the app is ready. |

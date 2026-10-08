@@ -219,9 +219,8 @@ public sealed class TrayIconService : IDisposable
 
         _notifyIcon.Text = text.Length > 127 ? text[..127] : text;
 
-        var canSwitch = _viewModel.CanSwitch && !_exiting;
-        _windowsItem.Enabled = canSwitch && mode != UsbMode.Windows;
-        _wslItem.Enabled = canSwitch && mode != UsbMode.Wsl;
+        _windowsItem.Enabled = _viewModel.CanSwitchToWindows && !_exiting;
+        _wslItem.Enabled = _viewModel.CanSwitchToWsl && !_exiting;
         _openItem.Enabled = !_exiting;
         _aboutItem.Enabled = !_exiting;
         _exitItem.Enabled = !_exiting;
