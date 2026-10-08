@@ -183,6 +183,36 @@ if (-not $sign) {
     }
 }
 
+# --- Close the running app ---------------------------------------------------------------------------
+# A running portable exe in dist\ is locked, so the build could not remove it as an older build.
+# --exit asks it to return the devices to Windows and quit (the saved mode is restored on its next start).
+
+Write-Step 'Close a running USBIPD Manager'
+$running = @(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like 'UsbipdManager*' })
+if ($UserArgs -contains '--dry-run') {
+    Write-Note 'Skipped (--dry-run).'
+} elseif ($running.Count -eq 0) {
+    Write-Ok 'Not running.'
+} else {
+    foreach ($process in $running) { Write-Note ("Running: {0} (PID {1})" -f $process.Path, $process.Id) }
+    $graceful = $false
+    $exe = @($running | Where-Object { $_.Path } | Select-Object -ExpandProperty Path -First 1)
+    if ($exe.Count -gt 0) {
+        Write-Host ("  > {0} --exit" -f $exe[0]) -ForegroundColor DarkGray
+        $exit = Start-Process -FilePath $exe[0] -ArgumentList '--exit' -WindowStyle Hidden -Wait -PassThru
+        $graceful = $exit.ExitCode -eq 0
+        if (-not $graceful) { Write-Warn "--exit returned $($exit.ExitCode)." }
+    }
+    foreach ($process in $running) {
+        if (-not $process.WaitForExit(5000)) {
+            Write-Warn ("PID {0} did not exit; stopping it. Devices may still be attached to WSL2." -f $process.Id)
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            $graceful = $false
+        }
+    }
+    Write-Ok $(if ($graceful) { 'Closed; devices were returned to Windows.' } else { 'Closed.' })
+}
+
 # --- Build -----------------------------------------------------------------------------------------
 
 Write-Step $(if ($installer) { 'Build the portable exe and the installer' } else { 'Build the portable exe' })
