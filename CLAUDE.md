@@ -25,7 +25,7 @@ Before any analysis, code change, review or debugging task, read:
 | Autostart, shortcuts, single instance, device events, version/dates | `src/UsbipdManager.Core/Platform/` |
 | Any UI (windows, tray, theme, styles) | `src/UsbipdManager/`, `src/UsbipdManager/Theme/DESIGN.md`; use the `ui-ux-pro-max` skill (`--stack wpf`) |
 | Command-line arguments | PLAN 6.1 table, `src/UsbipdManager/App.xaml.cs`, `installer/UsbipdManager.iss` (they must stay in sync) |
-| Build, version, release, installer | `build.ps1`, `tools/build/BuildTools.psm1`, `installer/UsbipdManager.iss`, `version.json` |
+| Build, version, release, installer, machine setup | `build.ps1`, `tools/build/BuildTools.psm1`, `installer/UsbipdManager.iss`, `version.json`, `setup.bat` + `tools/setup/Setup.ps1` |
 | Code signing, certificate | `tools/signing/`, PROJECT_CONTEXT "Code signing" |
 | Contracts between modules | `src/UsbipdManager.Core/Abstractions/`, `src/UsbipdManager.Core/Models/` |
 
@@ -38,6 +38,7 @@ dotnet test UsbipdManager.slnx
 .\build.ps1                               # bump PATCH, portable exe in dist/
 .\build.ps1 --version 1.2 --release -i    # set version, release dates, also build the installer
 .\build.ps1 --no-sign                     # builds sign by default; this skips it (no certificate needed)
+setup.bat                                 # new machine (admin): installs missing tools after asking (Enter = yes), certificate, builds exe + installer
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build/BuildTools.Tests.ps1
 ```
 

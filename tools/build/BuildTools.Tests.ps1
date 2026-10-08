@@ -403,6 +403,24 @@ try {
         Assert-Equal 0 @(Get-StaleBuildArtifacts -Directory (Join-Path $tempDir 'no-such-dist') -Kind Portable -KeepVersion '1.0.0').Count 'count'
     }
 
+    Test-Case 'setup: yes/no answers (Enter = yes)' {
+        foreach ($answer in '', '  ', 'y', 'Y', 'yes', 'YES ') { Assert-Equal $true (ConvertFrom-YesNoAnswer $answer) "'$answer'" }
+        Assert-Equal $true (ConvertFrom-YesNoAnswer $null) 'null'
+        foreach ($answer in 'n', 'N', 'no', ' No') { Assert-Equal $false (ConvertFrom-YesNoAnswer $answer) "'$answer'" }
+        foreach ($answer in 'x', 'yep', '1') { Assert-Equal $null (ConvertFrom-YesNoAnswer $answer) "'$answer'" }
+    }
+
+    Test-Case 'setup: build arguments' {
+        Assert-Equal '-i' ((Get-SetupBuildArguments -Arguments @() -Installer $true -Sign $true) -join ' ') 'defaults'
+        Assert-Equal '--no-bump -i' ((Get-SetupBuildArguments -Arguments @('--yes', '--no-bump') -Installer $true -Sign $true) -join ' ') 'setup flag removed'
+        Assert-Equal '--install' ((Get-SetupBuildArguments -Arguments @('--install') -Installer $true -Sign $true) -join ' ') 'no duplicate -i'
+        Assert-Equal '--no-bump' ((Get-SetupBuildArguments -Arguments @('-i', '--no-bump') -Installer $false -Sign $true) -join ' ') 'no installer'
+        Assert-Equal '-i --no-sign' ((Get-SetupBuildArguments -Arguments @('-y') -Installer $true -Sign $false) -join ' ') 'unsigned'
+        Assert-Equal '--no-sign' ((Get-SetupBuildArguments -Arguments @('--no-sign') -Installer $false -Sign $false) -join ' ') 'no duplicate --no-sign'
+        $none = Get-SetupBuildArguments -Arguments @() -Installer $false -Sign $true
+        Assert-Equal 0 $none.Count 'empty'
+    }
+
     Test-Case 'size formatting' {
         Assert-Equal '512 B' (Format-FileSize 512)
         if ((Format-FileSize (70 * 1MB)) -notlike '70*0 MB') { throw "unexpected '$(Format-FileSize (70 * 1MB))'" }

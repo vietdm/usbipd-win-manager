@@ -38,7 +38,9 @@ Right-click the tray icon for Open, Switch to Windows, Switch to WSL2, About and
 
 Requirements: .NET SDK 10, Inno Setup 6 (only for the installer), Windows PowerShell 5.1+, Windows SDK signtool (optional, for signing).
 
-Builds are signed by default. One-time setup, from an administrator PowerShell:
+**Easiest on a new machine: double-click `setup.bat`.** It asks for administrator rights, checks .NET SDK 10, Inno Setup 6, the Windows SDK signtool and the code signing certificate, installs what is missing with winget after a `[Y/n]` confirmation (Enter = yes), creates and trusts the certificate, then builds the portable exe and the installer. `setup.bat --yes` answers yes to everything; other arguments go to `build.ps1` (for example `setup.bat --no-bump`).
+
+Builds are signed by default. Manual one-time setup instead of `setup.bat`, from an administrator PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\signing\New-CodeSigningCert.ps1                       # create + trust the certificate

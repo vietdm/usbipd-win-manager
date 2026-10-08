@@ -16,11 +16,13 @@ usbipd-win-manager/
 ├── Directory.Build.props           # Version/dates from version.json, product metadata, shared compiler settings
 ├── version.json                    # { version, createdDate, updatedDate }
 ├── build.ps1, build.bat            # Build pipeline (portable exe, optional installer)
+├── setup.bat                       # New machine (admin): install missing tools via winget after confirming, certificate, build all
 ├── .gitignore, .gitattributes      # .bat/.ps1/.iss forced to CRLF
 ├── installer/UsbipdManager.iss     # Inno Setup script
 ├── tools/
-│   ├── build/BuildTools.psm1       # Arg parsing, version rules, date rules, version.json I/O
+│   ├── build/BuildTools.psm1       # Arg parsing, version rules, date rules, version.json I/O, tool lookup, setup helpers
 │   ├── build/BuildTools.Tests.ps1  # Plain-assert tests for the module (+ signing helpers)
+│   ├── setup/Setup.ps1             # Body of setup.bat (checks, winget installs, certificate, runs build.ps1 -i)
 │   ├── signing/Signing.psm1        # Certificate lookup, preflight, signtool/Set-AuthenticodeSignature, export
 │   ├── signing/New-CodeSigningCert.ps1  # One-time (admin): create/trust/export the self-signed certificate
 │   ├── signing/Sign-File.ps1       # CLI signer; Inno Setup's sign tool
@@ -89,6 +91,7 @@ Generated, ignored: `bin/`, `obj/`, `.artifacts/` (build outputs, `.artifacts/pu
 | Icons | `tools/generate-icons.ps1`, re-run it, commit `Assets/*.ico` |
 | A CLI argument | `Startup/CommandLineOptions.cs`, `App.xaml.cs`, `installer/UsbipdManager.iss`, PLAN 6.1, PROJECT_CONTEXT 3 |
 | Version / build flags | `tools/build/BuildTools.psm1` (+ its tests), `build.ps1`, CLAUDE.md commands |
+| Machine setup (tools to install, prompts) | `tools/setup/Setup.ps1`, `setup.bat`, helpers `ConvertFrom-YesNoAnswer` / `Get-SetupBuildArguments` in `BuildTools.psm1` (+ tests) |
 | Code signing | `tools/signing/Signing.psm1`, `build.ps1` (preflight, sign step, ISCC `/S`), `installer/UsbipdManager.iss` (`SignToolName`) |
 
 ## 4. Config and data

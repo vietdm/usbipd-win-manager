@@ -31,43 +31,6 @@ function Get-RelativePath([string]$Path) {
     return $Path
 }
 
-function Find-DotNet {
-    $path = $null
-    $command = Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -ne $command) {
-        $path = $command.Source
-    } elseif ($env:ProgramFiles -and (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'dotnet\dotnet.exe') -PathType Leaf)) {
-        # Freshly installed SDKs are not on PATH until a new terminal is opened.
-        $path = Join-Path $env:ProgramFiles 'dotnet\dotnet.exe'
-    }
-    if ($null -eq $path) { return $null }
-    $sdks = @()
-    $previous = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = 'Continue'
-        $sdks = @(& $path --list-sdks)
-    } catch {
-        $sdks = @()
-    } finally {
-        $ErrorActionPreference = $previous
-    }
-    $sdk10 = @($sdks | Where-Object { "$_" -match '^10\.' } | ForEach-Object { ("$_" -split ' ')[0] })
-    return [pscustomobject]@{ Path = $path; Sdk = $(if ($sdk10.Count -gt 0) { $sdk10[-1] } else { $null }) }
-}
-
-function Find-Iscc {
-    $candidates = @()
-    if (${env:ProgramFiles(x86)}) { $candidates += Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe' }
-    if ($env:ProgramFiles) { $candidates += Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe' }
-    if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe' }
-    foreach ($candidate in $candidates) {
-        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
-    }
-    $command = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($null -ne $command) { return $command.Source }
-    return $null
-}
-
 # --- parse and validate --------------------------------------------------------------------------
 
 try {

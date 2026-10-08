@@ -326,6 +326,73 @@ function Get-StaleBuildArtifacts {
     return @($stale)
 }
 
+function Find-DotNet {
+    $path = $null
+    $command = Get-Command dotnet -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $command) {
+        $path = $command.Source
+    } elseif ($env:ProgramFiles -and (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'dotnet\dotnet.exe') -PathType Leaf)) {
+        # Freshly installed SDKs are not on PATH until a new terminal is opened.
+        $path = Join-Path $env:ProgramFiles 'dotnet\dotnet.exe'
+    }
+    if ($null -eq $path) { return $null }
+    $sdks = @()
+    $previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $sdks = @(& $path --list-sdks)
+    } catch {
+        $sdks = @()
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    $sdk10 = @($sdks | Where-Object { "$_" -match '^10\.' } | ForEach-Object { ("$_" -split ' ')[0] })
+    return [pscustomobject]@{ Path = $path; Sdk = $(if ($sdk10.Count -gt 0) { $sdk10[-1] } else { $null }) }
+}
+
+function Find-Iscc {
+    $candidates = @()
+    if (${env:ProgramFiles(x86)}) { $candidates += Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe' }
+    if ($env:ProgramFiles) { $candidates += Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe' }
+    if ($env:LOCALAPPDATA) { $candidates += Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe' }
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) { return $candidate }
+    }
+    $command = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $command) { return $command.Source }
+    return $null
+}
+
+# setup.bat prompts: empty input (Enter) means yes. Returns $null for anything else, so the caller asks again.
+function ConvertFrom-YesNoAnswer {
+    param([AllowNull()][AllowEmptyString()][string]$Answer)
+
+    $text = if ($null -eq $Answer) { '' } else { $Answer.Trim().ToLowerInvariant() }
+    if ($text -in @('', 'y', 'yes')) { return $true }
+    if ($text -in @('n', 'no')) { return $false }
+    return $null
+}
+
+# The build.ps1 arguments setup.bat runs: the user's own arguments (setup-only flags removed), plus -i when the
+# installer can be built (removed when it cannot) and --no-sign when signing was declined.
+function Get-SetupBuildArguments {
+    param(
+        [AllowEmptyCollection()][string[]]$Arguments = @(),
+        [Parameter(Mandatory)][bool]$Installer,
+        [Parameter(Mandatory)][bool]$Sign
+    )
+
+    $result = @($Arguments | Where-Object { $_ -notin @('-y', '--yes') })
+    if ($Installer) {
+        if (-not ($result | Where-Object { $_ -in @('-i', '--install') })) { $result += '-i' }
+    } else {
+        $result = @($result | Where-Object { $_ -notin @('-i', '--install') })
+    }
+    if (-not $Sign -and -not ($result -contains '--no-sign')) { $result += '--no-sign' }
+    return , $result
+}
+
 Export-ModuleMember -Function Get-BuildUsage, ConvertFrom-BuildArguments, ConvertTo-BuildVersion, Compare-BuildVersion,
     Get-NextPatchVersion, Resolve-BuildVersion, Get-BuildToday, Resolve-BuildDates, Read-VersionFile,
-    Format-VersionJson, Write-VersionFile, Format-FileSize, Get-StaleBuildArtifacts
+    Format-VersionJson, Write-VersionFile, Format-FileSize, Get-StaleBuildArtifacts, Find-DotNet, Find-Iscc,
+    ConvertFrom-YesNoAnswer, Get-SetupBuildArguments
