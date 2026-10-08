@@ -28,6 +28,9 @@ Options:
       --dry-run       Show the resolved version, dates, steps and outputs without running anything.
   -h, --help          Show this help.
 
+After a successful build, older builds of the same kind are removed from dist\
+(other UsbipdManager-<v>-portable.exe; with -i also other UsbipdManager-Setup-<v>.exe).
+
 Examples:
   .\build.ps1                          1.0.3 -> 1.0.4, portable exe
   .\build.ps1 --version 2.2            -> 2.2.0
@@ -306,6 +309,23 @@ function Format-FileSize {
     return "$Bytes B"
 }
 
+# Older builds of one kind in dist/ that a successful build replaces. Only exact build names match
+# (UsbipdManager-<x.y.z>-portable.exe / UsbipdManager-Setup-<x.y.z>.exe), so other files are never touched.
+function Get-StaleBuildArtifacts {
+    param(
+        [Parameter(Mandatory)][string]$Directory,
+        [Parameter(Mandatory)][ValidateSet('Portable', 'Setup')][string]$Kind,
+        [Parameter(Mandatory)][string]$KeepVersion
+    )
+
+    if (-not (Test-Path -LiteralPath $Directory -PathType Container)) { return @() }
+    $pattern = if ($Kind -eq 'Portable') { '^UsbipdManager-(\d+\.\d+\.\d+)-portable\.exe$' } else { '^UsbipdManager-Setup-(\d+\.\d+\.\d+)\.exe$' }
+    $stale = Get-ChildItem -LiteralPath $Directory -File |
+        Where-Object { $_.Name -match $pattern -and $Matches[1] -ne $KeepVersion } |
+        Sort-Object Name
+    return @($stale)
+}
+
 Export-ModuleMember -Function Get-BuildUsage, ConvertFrom-BuildArguments, ConvertTo-BuildVersion, Compare-BuildVersion,
     Get-NextPatchVersion, Resolve-BuildVersion, Get-BuildToday, Resolve-BuildDates, Read-VersionFile,
-    Format-VersionJson, Write-VersionFile, Format-FileSize
+    Format-VersionJson, Write-VersionFile, Format-FileSize, Get-StaleBuildArtifacts

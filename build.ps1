@@ -201,6 +201,11 @@ if ($Sign) {
     }
 }
 
+# Older builds of the kinds this build produces; removed only after the whole build succeeded.
+$staleKinds = @('Portable')
+if ($Options.Install) { $staleKinds += 'Setup' }
+function Get-StaleArtifacts { foreach ($kind in $staleKinds) { Get-StaleBuildArtifacts -Directory $DistDir -Kind $kind -KeepVersion $Version } }
+
 $versionText = Format-VersionJson -Version $Version -CreatedDate $Dates.CreatedDate -UpdatedDate $Dates.UpdatedDate -NewLine $Current.NewLine
 $currentText = [System.IO.File]::ReadAllText($VersionFile, [System.Text.Encoding]::UTF8)
 $VersionFileChanged = ($versionText -cne $currentText)
@@ -245,6 +250,14 @@ if ($Options.DryRun) {
     } else {
         Write-Info ("  {0}. version.json stays unchanged" -f $n)
     }
+    $n++
+    $stale = @(Get-StaleArtifacts)
+    if ($stale.Count -gt 0) {
+        Write-Info ("  {0}. Remove older builds from {1}\" -f $n, (Get-RelativePath $DistDir))
+        foreach ($file in $stale) { Write-Info "     $($file.Name)" 'DarkGray' }
+    } else {
+        Write-Info ("  {0}. No older builds to remove" -f $n)
+    }
     Write-Info ''
     Write-Info 'Outputs:'
     Write-Info "  $(Get-RelativePath $PortableExe)"
@@ -288,6 +301,18 @@ try {
             Stop-Build "The build succeeded but version.json could not be written: $($_.Exception.Message)"
         }
     }
+
+    # A file still in use (e.g. a running portable exe) stays; that must not fail a successful build.
+    $removed = @()
+    $kept = @()
+    foreach ($file in @(Get-StaleArtifacts)) {
+        try {
+            Remove-Item -LiteralPath $file.FullName -Force -ErrorAction Stop
+            $removed += $file.Name
+        } catch {
+            $kept += $file.Name
+        }
+    }
 } finally {
     Pop-Location
 }
@@ -309,4 +334,6 @@ foreach ($artifact in $artifacts) {
     Write-Info ("    {0}  ({1}{2})" -f (Get-RelativePath $artifact), (Format-FileSize (Get-Item -LiteralPath $artifact).Length), $signatureText)
 }
 if ($Sign) { Write-Info ("    {0}\  (public certificate + install-certificate.bat for other machines)" -f (Get-RelativePath $CertificateDir)) }
+if ($removed.Count -gt 0) { Write-Info ("  Removed      : {0}" -f ($removed -join ', ')) }
+foreach ($name in $kept) { Write-Info "  WARNING: could not remove the older build $name (in use?); delete it by hand." 'Yellow' }
 exit 0

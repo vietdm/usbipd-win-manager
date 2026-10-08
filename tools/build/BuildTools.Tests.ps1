@@ -384,6 +384,25 @@ try {
         Assert-Equal $expected ([System.IO.File]::ReadAllText($file)) 'file content'
     }
 
+    Test-Case 'stale artifacts: only older builds of the requested kind' {
+        $dist = Join-Path $tempDir 'dist'
+        New-Item -ItemType Directory -Path (Join-Path $dist 'certificate') -Force | Out-Null
+        foreach ($name in 'UsbipdManager-1.0.0-portable.exe', 'UsbipdManager-1.0.1-portable.exe', 'UsbipdManager-1.0.2-portable.exe',
+                          'UsbipdManager-Setup-1.0.0.exe', 'UsbipdManager-Setup-1.0.2.exe',
+                          'UsbipdManager-1.0.0-portable.exe.bak', 'UsbipdManager-dev-portable.exe', 'notes.txt') {
+            [System.IO.File]::WriteAllText((Join-Path $dist $name), 'x')
+        }
+        $portable = @(Get-StaleBuildArtifacts -Directory $dist -Kind Portable -KeepVersion '1.0.2' | ForEach-Object Name)
+        Assert-Equal 'UsbipdManager-1.0.0-portable.exe|UsbipdManager-1.0.1-portable.exe' ($portable -join '|') 'portable'
+        $setup = @(Get-StaleBuildArtifacts -Directory $dist -Kind Setup -KeepVersion '1.0.2' | ForEach-Object Name)
+        Assert-Equal 'UsbipdManager-Setup-1.0.0.exe' ($setup -join '|') 'setup'
+        Assert-Equal 0 @(Get-StaleBuildArtifacts -Directory $dist -Kind Setup -KeepVersion '1.0.0' | Where-Object Name -like '*1.0.0*').Count 'kept version'
+    }
+
+    Test-Case 'stale artifacts: missing dist folder' {
+        Assert-Equal 0 @(Get-StaleBuildArtifacts -Directory (Join-Path $tempDir 'no-such-dist') -Kind Portable -KeepVersion '1.0.0').Count 'count'
+    }
+
     Test-Case 'size formatting' {
         Assert-Equal '512 B' (Format-FileSize 512)
         if ((Format-FileSize (70 * 1MB)) -notlike '70*0 MB') { throw "unexpected '$(Format-FileSize (70 * 1MB))'" }

@@ -110,7 +110,7 @@ The app runs elevated, so these are the folders of the user who elevated.
 - `version.json` = `{ version, createdDate, updatedDate }`, the single source of truth. `Directory.Build.props` reads it for normal builds; `build.ps1` passes `/p:Version`, `/p:AppCreatedDate`, `/p:AppUpdatedDate`.
 - `build.ps1` flags: `--version/-v <x|x.y|x.y.z>` (must be greater), `--no-bump`, `--install/-i`, `--release/-r`, `--no-sign`, `--skip-tests`, `--dry-run`, `--help/-h`. Default bumps PATCH and signs.
 - `--release`: first release sets `createdDate`, later releases set `updatedDate`. About shows "Development build" until the first release.
-- Steps: signing preflight (before anything runs) → tests → publish → sign the published exe → `dist/UsbipdManager-<v>-portable.exe` → (installer, Inno signs the setup exe and the uninstaller) `dist/UsbipdManager-Setup-<v>.exe` → `dist/certificate/` → write `version.json` only if everything succeeded.
+- Steps: signing preflight (before anything runs) → tests → publish → sign the published exe → `dist/UsbipdManager-<v>-portable.exe` → (installer, Inno signs the setup exe and the uninstaller) `dist/UsbipdManager-Setup-<v>.exe` → `dist/certificate/` → write `version.json` only if everything succeeded → remove older builds of the kinds just built from `dist/` (`Get-StaleBuildArtifacts`: other `UsbipdManager-<x.y.z>-portable.exe`, with `-i` other `UsbipdManager-Setup-<x.y.z>.exe`; exact names only; a locked file, e.g. a running portable exe, is kept with a warning).
 
 ## 9a. Code signing
 

@@ -59,7 +59,7 @@ dotnet test UsbipdManager.slnx
 build.bat --version 1.1 --release -i      # same flags, double-click friendly
 ```
 
-The version lives in `version.json` and is only written after a successful build.
+The version lives in `version.json` and is only written after a successful build. A successful build also removes the older builds it replaces from `dist` (older portable exe files; with `-i` older setup files too).
 
 Project documentation for developers and AI agents: [CLAUDE.md](CLAUDE.md), [docs/ai-memory/](docs/ai-memory/), [docs/PLAN.md](docs/PLAN.md).
 
