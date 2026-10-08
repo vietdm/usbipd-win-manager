@@ -60,6 +60,7 @@ usbipd-win-manager/
 │   └── Services/Fakes/             # Fakes for every Core interface
 └── docs/
     ├── PLAN.md                     # Confirmed spec + decision log
+    ├── images/                     # README screenshots (main window, Help, Settings, About)
     └── ai-memory/                  # This memory
 ```
 

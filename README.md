@@ -3,6 +3,8 @@
 A Windows tray app that moves USB devices between **Windows** and **WSL2** with one click, built on [usbipd-win](https://github.com/dorssel/usbipd-win).
 Made for debugging Flutter/Android apps inside WSL2 on a real phone while keeping the phone usable from Windows.
 
+<p align="center"><img src="docs/images/main-window.png" alt="USBIPD Manager main window: console log, device list with switches, mode buttons" width="480"></p>
+
 ## Features
 
 - Lives in the system tray and starts with Windows **elevated, without a UAC prompt** (Task Scheduler logon task).
@@ -20,10 +22,30 @@ Made for debugging Flutter/Android apps inside WSL2 on a real phone while keepin
 
 ## Install
 
-- **Installer**: run `UsbipdManager-Setup-<version>.exe`, keep "Start with Windows" ticked.
-- **Portable**: run `UsbipdManager-<version>-portable.exe` from any folder; turn on "Start with Windows" in Settings.
+Download from [Releases](https://github.com/vietdm/usbipd-win-manager/releases/latest):
 
-The binaries are signed with a self-signed certificate. On a new machine, first copy `dist\certificate\` (`USBIPD-Manager-CodeSigning.cer` + `install-certificate.bat`) and run `install-certificate.bat`, otherwise Windows shows "Unknown publisher" (and Smart App Control, if on, blocks the app).
+- **Installer**: `UsbipdManager-Setup-<version>.exe`, keep "Start with Windows" ticked.
+- **Portable**: `UsbipdManager-<version>-portable.exe`, run it from any folder; turn on "Start with Windows" in Settings.
+
+### Trust the signing certificate first (required)
+
+The release binaries are signed with a **self-signed** certificate (`CN=Minh Viet`), not one from a public certificate authority. Windows does not know it, so trust it once per machine **before** running the app:
+
+1. From the same release, download `USBIPD-Manager-CodeSigning.cer` and `install-certificate.bat` into the **same folder**.
+2. Check that it is the right certificate: in that folder run `certutil -dump USBIPD-Manager-CodeSigning.cer` and compare the hashes:
+   - `Cert Hash(sha1)`: `27849ed8178e300c4ad83cf1b9ccff5d446fb465`
+   - `Cert Hash(sha256)`: `d820d0d5dcecd4048ba34b2bfff6a24add39ae6eef2a5b4355341c50bc3caf25`
+3. Double-click `install-certificate.bat` and accept the administrator prompt. It adds the certificate to **Local Computer > Trusted Root Certification Authorities**.
+   Without the script: from an administrator terminal, run `certutil -addstore -f Root USBIPD-Manager-CodeSigning.cer`.
+4. Run the installer or the portable exe. The UAC prompt now shows **Verified publisher: Minh Viet**; Properties > Digital Signatures of the exe shows "This digital signature is OK".
+
+Good to know:
+
+- Without the certificate the app still runs, but UAC shows "Unknown publisher" for every launch you start yourself.
+- **Smart App Control must be Off** (Windows Security > App & browser control). It only accepts certificates from Microsoft-trusted authorities, so it blocks the app even after the certificate is trusted.
+- Files downloaded from the internet can trigger SmartScreen ("Windows protected your PC") the first time; choose **More info > Run anyway**, or clear **Unblock** in the file's Properties.
+- The certificate is limited to code signing and cannot act as a certificate authority (`ca=0`), so trusting it does not let it vouch for websites or other certificates. To remove it later: `certutil -delstore Root 27849ed8178e300c4ad83cf1b9ccff5d446fb465` (as administrator).
+- If you build the app yourself, `setup.bat` or `tools\signing\New-CodeSigningCert.ps1` creates and trusts your own certificate instead (see Development).
 
 ## Usage
 
@@ -33,6 +55,10 @@ The binaries are signed with a self-signed certificate. On a new machine, first 
 4. Press **WSL2** to give it to WSL (`adb devices` inside WSL now sees it) or **Windows** to give it back.
 
 Right-click the tray icon for Open, Switch to Windows, Switch to WSL2, About and Exit. **Help** in the window footer answers common problems (for example adb "no permissions" in WSL). Issues: vietdau33@gmail.com.
+
+| Help | Settings | About |
+| :---: | :---: | :---: |
+| <img src="docs/images/help.png" alt="Help window with a filterable list of common questions" width="260"> | <img src="docs/images/settings.png" alt="Settings window: start with Windows, theme, shortcuts, restore mode, auto re-attach, WSL distribution" width="260"> | <img src="docs/images/about.png" alt="About window with version, author and created date" width="260"> |
 
 ## Development
 
