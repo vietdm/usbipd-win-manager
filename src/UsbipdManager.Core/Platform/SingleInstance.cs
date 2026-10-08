@@ -11,11 +11,11 @@ public sealed class SingleInstance : ISingleInstance
         throw new NotImplementedException();
     }
 
-    public event EventHandler? ActivationRequested;
+    public event EventHandler<InstanceSignal>? SignalReceived;
 
     public bool TryAcquire() => throw new NotImplementedException();
 
-    public void SignalFirstInstance() => throw new NotImplementedException();
+    public void SignalFirstInstance(InstanceSignal signal) => throw new NotImplementedException();
 
     public void Dispose() => throw new NotImplementedException();
 }

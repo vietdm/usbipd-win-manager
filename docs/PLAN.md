@@ -116,6 +116,18 @@ All `usbipd` / `wsl` / `schtasks` calls go through `IProcessRunner`, so every co
 - Single instance: a second launch signals the running instance to show its window, then exits.
 - Launched with `--tray`: starts hidden in the tray. Launched manually: shows the window.
 
+Command-line contract (shared by the app, the installer and the autostart task):
+
+| Argument | Behavior | Exit code |
+| --- | --- | --- |
+| (none) | Start normally and show the window. | - |
+| `--tray` | Start hidden in the tray (used by the logon task). | - |
+| `--register-autostart` | Headless: create/refresh the logon task for this exe path, then exit. | 0 ok, 1 failed |
+| `--unregister-autostart` | Headless: delete the logon task, then exit. | 0 ok, 1 failed |
+| `--exit` | Headless: ask the running instance to release devices and quit, wait up to 20 s for it to end, then exit. | 0 ok (or nothing running), 1 timeout |
+
+A second normal launch only activates the running instance's window.
+
 ### 6.2 Startup checks (read-only, logged)
 
 1. Running as administrator.
