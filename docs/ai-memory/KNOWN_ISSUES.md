@@ -11,10 +11,11 @@ Only open issues and limitations backed by the current code or by observed behav
 
 ## High
 
-1. **Unsigned binaries vs. Smart App Control / SmartScreen.**
-   The exe, the installer and its uninstaller are not code-signed. Smart App Control is ON on the maintainer's machine (`VerifiedAndReputablePolicyState=1`)
-   and blocked freshly built unsigned binaries during development (`0x800711C7`, CodeIntegrity events 3033/3077/3118). A self-signed certificate does not satisfy Smart App Control.
-   Fix: sign with a certificate trusted by Microsoft (Azure Trusted Signing or a CA-issued code signing certificate) — see the signing guide given to the maintainer. `[NEEDS CONFIRMATION]` whether the published exe itself is blocked.
+1. **Self-signed only: machines must trust the certificate.**
+   Builds are signed with a self-signed certificate (PLAN Q16). On a machine without `USBIPD-Manager-CodeSigning.cer` in LocalMachine\Root the app shows "Unknown publisher",
+   and Smart App Control (if ON) blocks it: it only accepts Microsoft-trusted certificates, and blocked unsigned builds during development (`0x800711C7`, CodeIntegrity events 3033/3077/3118).
+   The maintainer turned Smart App Control off. A Microsoft-trusted certificate (Azure Trusted Signing, CA-issued OV) can be used later through `$env:USBIPD_SIGN_THUMBPRINT`.
+   The signed pipeline was tested end to end with a temporary certificate; `[NEEDS CONFIRMATION]` the UAC prompt shows "Verified publisher: Minh Viet" after `New-CodeSigningCert.ps1`.
 
 2. **Not yet verified against a real usbipd-win and real devices.**
    usbipd-win was not installed while the code was written; the `usbipd state` JSON shape, error texts and idempotency rules come from usbipd-win 4.x behavior and are covered by unit tests only.

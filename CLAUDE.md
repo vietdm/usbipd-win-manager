@@ -26,6 +26,7 @@ Before any analysis, code change, review or debugging task, read:
 | Any UI (windows, tray, theme, styles) | `src/UsbipdManager/`, `src/UsbipdManager/Theme/DESIGN.md`; use the `ui-ux-pro-max` skill (`--stack wpf`) |
 | Command-line arguments | PLAN 6.1 table, `src/UsbipdManager/App.xaml.cs`, `installer/UsbipdManager.iss` (they must stay in sync) |
 | Build, version, release, installer | `build.ps1`, `tools/build/BuildTools.psm1`, `installer/UsbipdManager.iss`, `version.json` |
+| Code signing, certificate | `tools/signing/`, PROJECT_CONTEXT "Code signing" |
 | Contracts between modules | `src/UsbipdManager.Core/Abstractions/`, `src/UsbipdManager.Core/Models/` |
 
 ## Commands
@@ -36,6 +37,7 @@ dotnet test UsbipdManager.slnx
 .\build.ps1 --dry-run                     # show what a build would do
 .\build.ps1                               # bump PATCH, portable exe in dist/
 .\build.ps1 --version 1.2 --release -i    # set version, release dates, also build the installer
+.\build.ps1 --no-sign                     # builds sign by default; this skips it (no certificate needed)
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/build/BuildTools.Tests.ps1
 ```
 

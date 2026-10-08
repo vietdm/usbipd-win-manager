@@ -6,6 +6,10 @@ dist/
 publish/
 *.binlog
 
+# Code signing private keys (never commit)
+*.pfx
+*.p12
+
 # IDE / OS
 .vs/
 .vscode/

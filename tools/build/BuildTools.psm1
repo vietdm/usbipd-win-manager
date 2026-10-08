@@ -22,6 +22,8 @@ Options:
       --no-bump       Rebuild the current version (cannot be combined with --version).
   -r, --release       Release build: sets createdDate on the first release, updatedDate afterwards.
   -i, --install       Also build the installer (requires Inno Setup 6).
+      --no-sign       Do not sign. By default the exe, the installer and its uninstaller are signed
+                      (see tools\signing\New-CodeSigningCert.ps1) and the build stops early if it cannot sign.
       --skip-tests    Do not run the unit tests.
       --dry-run       Show the resolved version, dates, steps and outputs without running anything.
   -h, --help          Show this help.
@@ -48,6 +50,7 @@ function ConvertFrom-BuildArguments {
         NoBump    = $false
         Install   = $false
         Release   = $false
+        NoSign    = $false
         SkipTests = $false
         DryRun    = $false
         Help      = $false
@@ -91,6 +94,7 @@ function ConvertFrom-BuildArguments {
             '-i'           { $options.Install = $true; break }
             '--release'    { $options.Release = $true; break }
             '-r'           { $options.Release = $true; break }
+            '--no-sign'    { $options.NoSign = $true; break }
             '--skip-tests' { $options.SkipTests = $true; break }
             '--dry-run'    { $options.DryRun = $true; break }
             '--help'       { $options.Help = $true; break }

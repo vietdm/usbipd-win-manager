@@ -7,6 +7,7 @@ Set-StrictMode -Version 2.0
 
 $Root = $PSScriptRoot
 Import-Module (Join-Path $Root 'tools\build\BuildTools.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $Root 'tools\signing\Signing.psm1') -Force -DisableNameChecking
 
 function Write-Info([string]$Text, [string]$Color = 'Gray') { Write-Host $Text -ForegroundColor $Color }
 
@@ -98,6 +99,9 @@ $PortableExe = Join-Path $DistDir "UsbipdManager-$Version-portable.exe"
 $SetupExe = Join-Path $DistDir "UsbipdManager-Setup-$Version.exe"
 $IssFile = Join-Path $Root 'installer\UsbipdManager.iss'
 $AppIcon = Join-Path $Root 'src\UsbipdManager\Assets\app.ico'
+$CertificateDir = Join-Path $DistDir 'certificate'
+$SignScript = Join-Path $Root 'tools\signing\Sign-File.ps1'
+$Sign = -not $Options.NoSign
 
 # --- toolchain -----------------------------------------------------------------------------------
 
@@ -115,6 +119,11 @@ if ($Options.Install) {
         $toolProblems += 'Inno Setup 6 (ISCC.exe) was not found; it is needed for --install. Install it with: winget install JRSoftware.InnoSetup'
     }
     if (-not (Test-Path -LiteralPath $IssFile -PathType Leaf)) { $toolProblems += "Installer script not found: $IssFile" }
+}
+$Signing = $null
+if ($Sign) {
+    $Signing = Get-SigningReadiness
+    $toolProblems += $Signing.Problems
 }
 if (-not $Options.DryRun -and $toolProblems.Count -gt 0) { Stop-Build ($toolProblems -join [Environment]::NewLine + '       ') }
 
@@ -141,6 +150,13 @@ $publishArgs += @('-o', $PublishDir)
 
 $isccArgs = @("/DAppVersion=$Version", "/DSourceExe=$PublishedExe")
 if (Test-Path -LiteralPath $AppIcon -PathType Leaf) { $isccArgs += "/DAppIcon=$AppIcon" }
+if ($Sign) {
+    # Inno Setup signs the setup exe and the uninstaller through this named sign tool; it replaces $q with a quote
+    # and $f with the quoted file name, so the string must stay single-quoted here.
+    $thumbprint = $(if ($null -ne $Signing.Certificate) { $Signing.Certificate.Thumbprint } else { '<thumbprint>' })
+    $isccArgs += '/DSignToolName=usbipdsign'
+    $isccArgs += ('/Susbipdsign=powershell.exe -NoProfile -ExecutionPolicy Bypass -File $q' + $SignScript + '$q -Thumbprint ' + $thumbprint + ' -Path $f')
+}
 $isccArgs += @('/Q', "/O$DistDir", $IssFile)
 
 $Steps = @()
@@ -154,6 +170,15 @@ $Steps += [pscustomobject]@{
     Action = { if (Test-Path -LiteralPath $PublishDir) { Remove-Item -LiteralPath $PublishDir -Recurse -Force } }
 }
 $Steps += [pscustomobject]@{ Title = 'Publish (self-contained, single file, win-x64)'; File = $DotNetExe; Args = $publishArgs; Action = $null; Show = $null }
+if ($Sign) {
+    # Signed before it is copied and packaged, so the portable exe and the installed exe carry the signature.
+    $Steps += [pscustomobject]@{
+        Title  = 'Sign exe'
+        File   = $null; Args = $null
+        Show   = "sign $(Get-RelativePath $PublishedExe) with $(if ($Signing.SignTool) { 'signtool' } else { 'Set-AuthenticodeSignature' })"
+        Action = { Invoke-CodeSigning -Path $PublishedExe -Certificate $Signing.Certificate -SignTool $Signing.SignTool | Out-Null }
+    }
+}
 $Steps += [pscustomobject]@{
     Title  = 'Copy portable exe'
     File   = $null; Args = $null
@@ -165,7 +190,15 @@ $Steps += [pscustomobject]@{
     }
 }
 if ($Options.Install) {
-    $Steps += [pscustomobject]@{ Title = 'Build installer (Inno Setup)'; File = $IsccExe; Args = $isccArgs; Action = $null; Show = $null }
+    $Steps += [pscustomobject]@{ Title = $(if ($Sign) { 'Build and sign installer (Inno Setup)' } else { 'Build installer (Inno Setup)' }); File = $IsccExe; Args = $isccArgs; Action = $null; Show = $null }
+}
+if ($Sign) {
+    $Steps += [pscustomobject]@{
+        Title  = 'Export public certificate for other machines'
+        File   = $null; Args = $null
+        Show   = "write $(Get-RelativePath $CertificateDir)\$((Get-CodeSigningDefaults).CertificateFile) and install-certificate.bat"
+        Action = { Export-CodeSigningCertificate -Certificate $Signing.Certificate -Directory $CertificateDir | Out-Null }
+    }
 }
 
 $versionText = Format-VersionJson -Version $Version -CreatedDate $Dates.CreatedDate -UpdatedDate $Dates.UpdatedDate -NewLine $Current.NewLine
@@ -179,7 +212,11 @@ Write-Info 'USBIPD Manager build' 'Cyan'
 Write-Info ("  Version      : {0} -> {1}" -f $Current.Version, $Version)
 Write-Info ("  Created date : {0} -> {1}" -f (Format-Date $Current.CreatedDate), (Format-Date $Dates.CreatedDate))
 Write-Info ("  Updated date : {0} -> {1}" -f (Format-Date $Current.UpdatedDate), (Format-Date $Dates.UpdatedDate))
-Write-Info ("  Mode         : {0}{1}{2}" -f $(if ($Options.Release) { 'release' } else { 'development' }), $(if ($Options.Install) { ', installer' } else { '' }), $(if ($Options.SkipTests) { ', tests skipped' } else { '' }))
+Write-Info ("  Mode         : {0}{1}{2}{3}" -f $(if ($Options.Release) { 'release' } else { 'development' }), $(if ($Options.Install) { ', installer' } else { '' }), $(if ($Sign) { ', signed' } else { ', unsigned' }), $(if ($Options.SkipTests) { ', tests skipped' } else { '' }))
+if ($Sign -and $null -ne $Signing.Certificate) {
+    Write-Info ("  Certificate  : {0} ({1}, valid until {2})" -f $Signing.Certificate.Subject, $Signing.Certificate.Thumbprint, $Signing.Certificate.NotAfter.ToString('yyyy-MM-dd'))
+}
+if ($Sign) { foreach ($warning in $Signing.Warnings) { Write-Info "  WARNING: $warning" 'Yellow' } }
 
 # --- dry run -------------------------------------------------------------------------------------
 
@@ -190,6 +227,7 @@ if ($Options.DryRun) {
     Write-Info 'Toolchain:'
     if ($null -ne $DotNet) { Write-Info ("  dotnet : {0} (SDK {1})" -f $DotNet.Path, (Format-Date $DotNet.Sdk)) } else { Write-Info '  dotnet : not found' }
     if ($Options.Install) { Write-Info ("  ISCC   : {0}" -f $(if ($Iscc) { $Iscc } else { 'not found' })) }
+    if ($Sign) { Write-Info ("  signer : {0}" -f $(if ($Signing.SignTool) { $Signing.SignTool } else { 'Set-AuthenticodeSignature (signtool not found)' })) }
     foreach ($problem in $toolProblems) { Write-Info "  WARNING: $problem" 'Yellow' }
     Write-Info ''
     Write-Info 'Steps:'
@@ -211,6 +249,7 @@ if ($Options.DryRun) {
     Write-Info 'Outputs:'
     Write-Info "  $(Get-RelativePath $PortableExe)"
     if ($Options.Install) { Write-Info "  $(Get-RelativePath $SetupExe)" }
+    if ($Sign) { Write-Info "  $(Get-RelativePath $CertificateDir)\" }
     exit 0
 }
 
@@ -260,10 +299,14 @@ Write-Info ("  Version      : {0}" -f $Version)
 Write-Info ("  Created date : {0}" -f $(if ($Dates.CreatedDate) { $Dates.CreatedDate } else { 'none (development build)' }))
 Write-Info ("  Updated date : {0}" -f (Format-Date $Dates.UpdatedDate))
 Write-Info ("  version.json : {0}" -f $(if ($VersionFileChanged) { 'updated' } else { 'unchanged' }))
+Write-Info ("  Signed       : {0}" -f $(if ($Sign) { "yes, $($Signing.Certificate.Subject) ($($Signing.Certificate.Thumbprint))" } else { 'no (--no-sign)' }))
 Write-Info '  Artifacts    :'
 $artifacts = @($PortableExe)
 if ($Options.Install) { $artifacts += $SetupExe }
 foreach ($artifact in $artifacts) {
-    Write-Info ("    {0}  ({1})" -f (Get-RelativePath $artifact), (Format-FileSize (Get-Item -LiteralPath $artifact).Length))
+    $signatureText = ''
+    if ($Sign) { $signatureText = ', signature: ' + (Get-AuthenticodeSignature -LiteralPath $artifact).Status }
+    Write-Info ("    {0}  ({1}{2})" -f (Get-RelativePath $artifact), (Format-FileSize (Get-Item -LiteralPath $artifact).Length), $signatureText)
 }
+if ($Sign) { Write-Info ("    {0}\  (public certificate + install-certificate.bat for other machines)" -f (Get-RelativePath $CertificateDir)) }
 exit 0

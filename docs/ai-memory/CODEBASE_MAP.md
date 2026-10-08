@@ -19,7 +19,11 @@ usbipd-win-manager/
 ├── installer/UsbipdManager.iss     # Inno Setup script
 ├── tools/
 │   ├── build/BuildTools.psm1       # Arg parsing, version rules, date rules, version.json I/O
-│   ├── build/BuildTools.Tests.ps1  # Plain-assert tests for the module
+│   ├── build/BuildTools.Tests.ps1  # Plain-assert tests for the module (+ signing helpers)
+│   ├── signing/Signing.psm1        # Certificate lookup, preflight, signtool/Set-AuthenticodeSignature, export
+│   ├── signing/New-CodeSigningCert.ps1  # One-time (admin): create/trust/export the self-signed certificate
+│   ├── signing/Sign-File.ps1       # CLI signer; Inno Setup's sign tool
+│   ├── signing/install-certificate.bat  # Copied to dist/certificate/; trusts the .cer on other machines
 │   └── generate-icons.ps1          # Renders Assets/*.ico with System.Drawing
 ├── src/
 │   ├── UsbipdManager.Core/         # All logic, no WPF
@@ -56,7 +60,7 @@ usbipd-win-manager/
     └── ai-memory/                  # This memory
 ```
 
-Generated, ignored: `bin/`, `obj/`, `.artifacts/` (build outputs, `.artifacts/publish/<v>/`), `dist/` (final exe files).
+Generated, ignored: `bin/`, `obj/`, `.artifacts/` (build outputs, `.artifacts/publish/<v>/`), `dist/` (final exe files, `dist/certificate/`), `*.pfx`.
 
 ## 2. Entry points
 
@@ -83,6 +87,7 @@ Generated, ignored: `bin/`, `obj/`, `.artifacts/` (build outputs, `.artifacts/pu
 | Icons | `tools/generate-icons.ps1`, re-run it, commit `Assets/*.ico` |
 | A CLI argument | `Startup/CommandLineOptions.cs`, `App.xaml.cs`, `installer/UsbipdManager.iss`, PLAN 6.1, PROJECT_CONTEXT 3 |
 | Version / build flags | `tools/build/BuildTools.psm1` (+ its tests), `build.ps1`, CLAUDE.md commands |
+| Code signing | `tools/signing/Signing.psm1`, `build.ps1` (preflight, sign step, ISCC `/S`), `installer/UsbipdManager.iss` (`SignToolName`) |
 
 ## 4. Config and data
 

@@ -1,5 +1,6 @@
 ; Inno Setup 6 script for USBIPD Manager. Normally compiled by build.ps1 --install:
-;   ISCC /DAppVersion=1.2.3 /DSourceExe=<published UsbipdManager.exe> [/DAppIcon=<app.ico>] /O<output dir> UsbipdManager.iss
+;   ISCC /DAppVersion=1.2.3 /DSourceExe=<published UsbipdManager.exe> [/DAppIcon=<app.ico>]
+;        [/DSignToolName=<name> "/S<name>=<sign command using $f>"] /O<output dir> UsbipdManager.iss
 ; The command-line arguments used below (--exit, --register-autostart, --unregister-autostart) are the
 ; contract from docs/PLAN.md 6.1; keep them in sync with the app.
 
@@ -52,6 +53,11 @@ CloseApplications=yes
 RestartApplications=no
 ; The user-area shortcut cleanup in [UninstallDelete] is intentional.
 UsedUserAreasWarning=no
+#ifdef SignToolName
+; build.ps1 defines the sign tool with /S<name>=<command>; it signs this setup exe and the uninstaller.
+SignTool={#SignToolName}
+SignedUninstaller=yes
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

@@ -4,6 +4,7 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 Import-Module (Join-Path $PSScriptRoot 'BuildTools.psm1') -Force -DisableNameChecking
+Import-Module (Join-Path $PSScriptRoot '..\signing\Signing.psm1') -Force -DisableNameChecking
 
 $script:Passed = 0
 $script:Failed = 0
@@ -51,7 +52,7 @@ function Invoke-WithRawArgs { ConvertFrom-BuildArguments -Arguments $args }
 Test-Case 'parse: no arguments gives defaults' {
     $o = Parse
     Assert-Equal $null $o.Version 'Version'
-    foreach ($p in 'NoBump', 'Install', 'Release', 'SkipTests', 'DryRun', 'Help') { Assert-Equal $false $o.$p $p }
+    foreach ($p in 'NoBump', 'Install', 'Release', 'NoSign', 'SkipTests', 'DryRun', 'Help') { Assert-Equal $false $o.$p $p }
 }
 
 Test-Case 'parse: long flags' {
@@ -77,6 +78,12 @@ Test-Case 'parse: help' {
 
 Test-Case 'parse: --no-bump' {
     Assert-Equal $true (Parse '--no-bump').NoBump 'NoBump'
+}
+
+Test-Case 'parse: --no-sign' {
+    $o = Parse '--no-sign' '-i'
+    Assert-Equal $true $o.NoSign 'NoSign'
+    Assert-Equal $true $o.Install 'Install'
 }
 
 Test-Case 'parse: --version=<v> and -v:<v>' {
@@ -130,6 +137,61 @@ Test-Case 'parse: --version twice' {
 
 Test-Case 'parse: --no-bump with --version is an error' {
     Assert-Throws { Parse '--no-bump' '--version' '2' } '--no-bump cannot be combined with --version.' ([System.ArgumentException])
+}
+
+# --- signing -----------------------------------------------------------------------------------
+
+function New-TestCertificate([string[]]$Eku = @('1.3.6.1.5.5.7.3.3'), [switch]$Expired) {
+    # In-memory certificate; nothing is written to a certificate store.
+    $rsa = [System.Security.Cryptography.RSA]::Create(2048)
+    $request = New-Object System.Security.Cryptography.X509Certificates.CertificateRequest -ArgumentList 'CN=Signing Test', $rsa,
+        ([System.Security.Cryptography.HashAlgorithmName]::SHA256), ([System.Security.Cryptography.RSASignaturePadding]::Pkcs1)
+    if ($Eku.Count -gt 0) {
+        $oids = New-Object System.Security.Cryptography.OidCollection
+        foreach ($value in $Eku) { [void]$oids.Add((New-Object System.Security.Cryptography.Oid -ArgumentList $value)) }
+        $request.CertificateExtensions.Add((New-Object System.Security.Cryptography.X509Certificates.X509EnhancedKeyUsageExtension -ArgumentList $oids, $false))
+    }
+    $now = [DateTimeOffset]::Now
+    if ($Expired) { return $request.CreateSelfSigned($now.AddDays(-30), $now.AddDays(-1)) }
+    return $request.CreateSelfSigned($now.AddDays(-1), $now.AddDays(365))
+}
+
+Test-Case 'signing: signtool arguments with and without timestamp' {
+    $with = Get-SignToolArguments -Thumbprint 'ABC' -Path 'D:\my app\a.exe'
+    Assert-Equal 'sign /fd SHA256 /sha1 ABC /s My /d USBIPD Manager /tr http://timestamp.digicert.com /td SHA256 D:\my app\a.exe' ($with -join ' ')
+    Assert-Equal 'D:\my app\a.exe' $with[-1] 'path is one argument'
+    $without = Get-SignToolArguments -Thumbprint 'ABC' -Path 'a.exe' -NoTimestamp
+    Assert-Equal 'sign /fd SHA256 /sha1 ABC /s My /d USBIPD Manager a.exe' ($without -join ' ')
+}
+
+Test-Case 'signing: certificate validity rules' {
+    Assert-Equal $true (Test-CodeSigningCertificate (New-TestCertificate)) 'code signing cert with key'
+    Assert-Equal $false (Test-CodeSigningCertificate (New-TestCertificate -Eku @('1.3.6.1.5.5.7.3.1'))) 'server auth only'
+    Assert-Equal $false (Test-CodeSigningCertificate (New-TestCertificate -Eku @())) 'no EKU'
+    Assert-Equal $false (Test-CodeSigningCertificate (New-TestCertificate -Expired)) 'expired'
+    $publicOnly = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList (, (New-TestCertificate).RawData)
+    Assert-Equal $false (Test-CodeSigningCertificate $publicOnly) 'no private key'
+    Assert-Equal $false (Test-CodeSigningCertificate $null) 'null'
+}
+
+Test-Case 'signing: an unknown self-signed certificate is not trusted' {
+    Assert-Equal $false (Test-CertificateTrusted (New-TestCertificate)) 'trusted'
+}
+
+Test-Case 'signing: export writes the public certificate and the installer batch file' {
+    $dir = Join-Path ([System.IO.Path]::GetTempPath()) ('SigningTests-' + [guid]::NewGuid().ToString('N'))
+    try {
+        $cert = New-TestCertificate
+        $result = Export-CodeSigningCertificate -Certificate $cert -Directory $dir
+        $exported = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList $result.Certificate
+        Assert-Equal $cert.Thumbprint $exported.Thumbprint 'thumbprint'
+        Assert-Equal $false $exported.HasPrivateKey 'HasPrivateKey'
+        Assert-Equal 'USBIPD-Manager-CodeSigning.cer' ([System.IO.Path]::GetFileName($result.Certificate)) 'file name'
+        if (-not (Test-Path -LiteralPath $result.Installer -PathType Leaf)) { throw 'install-certificate.bat was not copied' }
+        if ([System.IO.File]::ReadAllText($result.Installer) -notmatch 'USBIPD-Manager-CodeSigning\.cer') { throw 'batch file does not reference the certificate file' }
+    } finally {
+        if (Test-Path -LiteralPath $dir) { Remove-Item -LiteralPath $dir -Recurse -Force }
+    }
 }
 
 # --- version normalization and comparison -------------------------------------------------------

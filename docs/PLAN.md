@@ -237,7 +237,7 @@ Outputs:
 - `dist/UsbipdManager-<version>-portable.exe` (always)
 - `dist/UsbipdManager-Setup-<version>.exe` (with `--install` / `-i`)
 
-Installer: per-machine to `C:\Program Files\USBIPD Manager\`, Start Menu shortcut, optional desktop shortcut, checkboxes "Start with Windows" and "Launch now", closes the running instance before upgrading, uninstall removes the scheduled task and shortcuts. Not code-signed → SmartScreen "Unknown publisher" warning.
+Installer: per-machine to `C:\Program Files\USBIPD Manager\`, Start Menu shortcut, optional desktop shortcut, checkboxes "Start with Windows" and "Launch now", closes the running instance before upgrading, uninstall removes the scheduled task and shortcuts. Signed with the self-signed certificate (Q16).
 
 ## 9. UI design approach
 
@@ -284,3 +284,4 @@ All rewritten in English for this project (the copied files belong to another pr
 | Q13 | git | git init + `.gitignore`. |
 | Q14 | AGENTS.md | Yes. |
 | Q15 | Toolchain | Installed by the maintainer. |
+| Q16 | Code signing (2026-10-08) | Personal use; Smart App Control turned off by the maintainer. Self-signed certificate, trusted via LocalMachine\Root (`dist/certificate/` for other machines). `build.ps1` signs by default and checks the signing prerequisites before building; `--no-sign` opts out. |

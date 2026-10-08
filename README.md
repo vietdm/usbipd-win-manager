@@ -23,7 +23,7 @@ Made for debugging Flutter/Android apps inside WSL2 on a real phone while keepin
 - **Installer**: run `UsbipdManager-Setup-<version>.exe`, keep "Start with Windows" ticked.
 - **Portable**: run `UsbipdManager-<version>-portable.exe` from any folder; turn on "Start with Windows" in Settings.
 
-The binaries are not code-signed yet, so Windows SmartScreen / Smart App Control may warn or block them.
+The binaries are signed with a self-signed certificate. On a new machine, first copy `dist\certificate\` (`USBIPD-Manager-CodeSigning.cer` + `install-certificate.bat`) and run `install-certificate.bat`, otherwise Windows shows "Unknown publisher" (and Smart App Control, if on, blocks the app).
 
 ## Usage
 
@@ -36,7 +36,14 @@ Right-click the tray icon for Open, Switch to Windows, Switch to WSL2, About and
 
 ## Development
 
-Requirements: .NET SDK 10, Inno Setup 6 (only for the installer), Windows PowerShell 5.1+.
+Requirements: .NET SDK 10, Inno Setup 6 (only for the installer), Windows PowerShell 5.1+, Windows SDK signtool (optional, for signing).
+
+Builds are signed by default. One-time setup, from an administrator PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\signing\New-CodeSigningCert.ps1                       # create + trust the certificate
+powershell -ExecutionPolicy Bypass -File tools\signing\New-CodeSigningCert.ps1 -PfxPath D:\backup.pfx  # same, plus a private-key backup
+```
 
 ```powershell
 dotnet build UsbipdManager.slnx
@@ -48,6 +55,7 @@ dotnet test UsbipdManager.slnx
 .\build.ps1 --no-bump                     # rebuild the current version
 .\build.ps1 -i                            # also build dist\UsbipdManager-Setup-<v>.exe
 .\build.ps1 --release                     # first release sets the created date, later releases the updated date
+.\build.ps1 --no-sign                     # skip signing (no certificate needed)
 build.bat --version 1.1 --release -i      # same flags, double-click friendly
 ```
 

@@ -108,9 +108,17 @@ The app runs elevated, so these are the folders of the user who elevated.
 ## 9. Build and versioning
 
 - `version.json` = `{ version, createdDate, updatedDate }`, the single source of truth. `Directory.Build.props` reads it for normal builds; `build.ps1` passes `/p:Version`, `/p:AppCreatedDate`, `/p:AppUpdatedDate`.
-- `build.ps1` flags: `--version/-v <x|x.y|x.y.z>` (must be greater), `--no-bump`, `--install/-i`, `--release/-r`, `--skip-tests`, `--dry-run`, `--help/-h`. Default bumps PATCH.
+- `build.ps1` flags: `--version/-v <x|x.y|x.y.z>` (must be greater), `--no-bump`, `--install/-i`, `--release/-r`, `--no-sign`, `--skip-tests`, `--dry-run`, `--help/-h`. Default bumps PATCH and signs.
 - `--release`: first release sets `createdDate`, later releases set `updatedDate`. About shows "Development build" until the first release.
-- Steps: tests → publish → `dist/UsbipdManager-<v>-portable.exe` → (installer) `dist/UsbipdManager-Setup-<v>.exe` → write `version.json` only if everything succeeded.
+- Steps: signing preflight (before anything runs) → tests → publish → sign the published exe → `dist/UsbipdManager-<v>-portable.exe` → (installer, Inno signs the setup exe and the uninstaller) `dist/UsbipdManager-Setup-<v>.exe` → `dist/certificate/` → write `version.json` only if everything succeeded.
+
+## 9a. Code signing
+
+- Self-signed certificate (maintainer decision, PLAN Q16; Smart App Control is off on the maintainer's machine). Subject `CN=Minh Viet`, friendly name `USBIPD Manager Code Signing`, RSA 3072, 10 years, code signing EKU only, Basic Constraints `ca=0`, in `Cert:\CurrentUser\My`.
+- `tools/signing/New-CodeSigningCert.ps1` (admin, one time): creates or reuses the certificate, adds the public part to LocalMachine\Root, exports `dist/certificate/USBIPD-Manager-CodeSigning.cer` + `install-certificate.bat` (other machines: copy both, double-click the .bat), optional `-PfxPath` private-key backup. `-New` replaces an expiring certificate.
+- `Signing.psm1` finds the certificate by friendly name (or `$env:USBIPD_SIGN_THUMBPRINT`), uses signtool from the newest Windows SDK, else `Set-AuthenticodeSignature`. Timestamp `http://timestamp.digicert.com`; if it is unreachable the file is signed without a timestamp (warning).
+- Inno Setup signing: build.ps1 passes `/DSignToolName=usbipdsign` and `/Susbipdsign=powershell.exe ... Sign-File.ps1 ... -Path $f`; the .iss sets `SignTool` + `SignedUninstaller` only when `SignToolName` is defined.
+- A certificate that is not in Root still signs (status `UnknownError`), with a preflight warning: Windows then shows "Unknown publisher".
 - PowerShell 5.1 quirks handled in `BuildTools.psm1`: a bare `--` is swallowed when calling `.ps1` directly; numeric tokens like `1.10` arrive as numbers and are re-read as typed text.
 
 ## 10. UI design system
